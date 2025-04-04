@@ -186,7 +186,11 @@ def process_single_sequence_and_save(sequence_file: str, save_path: Path, has_la
         There is not returns when we only want to save the preprocessed result to .pkl and .npy files.
     """
     sequence_name = os.path.splitext(os.path.basename(sequence_file))[0]
-    sequence_file_tfrecord = sequence_file[:-9] + '_with_camera_labels.tfrecord'
+    sequence_file_root, _ = os.path.splitext(sequence_file)
+    expected_root_suffix = "_with_camera_labels"
+    sequence_file_adjusted_root = sequence_file_root if sequence_file_root.endswith(expected_root_suffix) \
+        else sequence_file_root + expected_root_suffix
+    sequence_file_tfrecord = sequence_file_adjusted_root + ".tfrecord"
     
     if not os.path.exists(sequence_file):
         print('TFRecord not exists: %s' % sequence_file)
@@ -197,7 +201,7 @@ def process_single_sequence_and_save(sequence_file: str, save_path: Path, has_la
         os.makedirs(cur_save_dir)
     pkl_file = os.path.join(cur_save_dir, ('%s.pkl' % sequence_name))
 
-    if pkl_file.exists():
+    if os.path.exists(pkl_file):
         sequence_infos = pickle.load(open(pkl_file, 'rb'))
         print('Skip sequence since it has been processed before: %s' % pkl_file)
         return sequence_infos

@@ -6,9 +6,21 @@ All the codes are tested in the environment:
 - Python 3.8 (waymo-open-dataset 2-5-0 required)
 - PyTorch 1.10 or higher
 - CUDA 11.0 or higher
-- GCC 5.4+
+- GCC 5.4+ (but also note the highest version of GCC supported by the CUDA version used, for compiling CUDA code with nvcc).
 - [spconv v2.x](https://github.com/traveller59/spconv)
 
+Make sure that you set the software environment correctly before running setup.py
+
+For example, if you use PyTorch 2.6.0+cu124, which requires CUDA 12.4, which, in turn, only supports gcc 11.4 or older
+when compiling CUDA code, then you need to make sure the correct versions of CUDA and gcc/g++ are used during the setup
+process. One way is to set the environment variables, such as:
+```shell
+export CUDA_HOME=/usr/local/cuda-12.4
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
+export CUDAHOSTCXX=/usr/bin/g++-11
+```
 
 ## Recomended Steps
 **a. Create a conda virtual environment.**

@@ -1,4 +1,5 @@
 import os
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -10,6 +11,8 @@ from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 from detzero_det.utils import model_nms_utils
 from detzero_det.utils.ensemble_utils.ensemble import wbf_online
 from detzero_det.models import centerpoint_modules as cp_modules
+from detzero_det.datasets.types import BatchDict
+from detzero_det.models.types import ModelInfoDict, PredDict, RecallDict, TrainingOutput
 
 
 class CenterPoint(nn.Module):
@@ -24,7 +27,9 @@ class CenterPoint(nn.Module):
         self.second_stage = model_cfg.SECOND_STAGE
         self.module_list = self.build_networks()
 
-    def forward(self, batch_dict):
+    def forward(
+        self, batch_dict: BatchDict
+    ) -> Union[TrainingOutput, Tuple[List[PredDict], RecallDict]]:
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
 
@@ -38,7 +43,7 @@ class CenterPoint(nn.Module):
             pred_dicts, recall_dicts = self.post_processing(batch_dict)
             return pred_dicts, recall_dicts
 
-    def get_training_loss(self):
+    def get_training_loss(self) -> Tuple[torch.Tensor, Dict[str, float], Dict[str, float]]:
         disp_dict = {}
         tb_dict = {}
         loss, tb_dict = self.dense_head.get_loss()
@@ -56,7 +61,7 @@ class CenterPoint(nn.Module):
     def update_global_step(self):
         self.global_step += 1
 
-    def build_networks(self):
+    def build_networks(self) -> List[nn.Module]:
         model_info_dict = {
             'module_list': [],
             'num_point_features': self.dataset.point_feature_encoder.num_point_features,
@@ -129,7 +134,10 @@ class CenterPoint(nn.Module):
         return module_list
 
     @staticmethod
-    def test_time_augment(data_dict, pred_dicts):
+    def test_time_augment(
+        data_dict: BatchDict,
+        pred_dicts: List[PredDict],
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         tta_ops = data_dict["tta_ops"]
         tta_num = len(tta_ops)
         bs = int(data_dict["batch_size"] // tta_num)
@@ -207,7 +215,7 @@ class CenterPoint(nn.Module):
         boxes, scores, labels = wbf_online(boxes, scores, labels)
         return boxes, scores, labels
 
-    def post_processing(self, batch_dict):
+    def post_processing(self, batch_dict: BatchDict) -> Tuple[List[PredDict], RecallDict]:
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
         
@@ -307,7 +315,13 @@ class CenterPoint(nn.Module):
         return pred_dicts, recall_dict
 
     @staticmethod
-    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None):
+    def generate_recall_record(
+        box_preds: torch.Tensor,
+        recall_dict: RecallDict,
+        batch_index: int,
+        data_dict: Optional[BatchDict] = None,
+        thresh_list: Optional[List[float]] = None,
+    ) -> RecallDict:
         if 'gt_boxes' not in data_dict:
             return recall_dict
 

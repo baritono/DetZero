@@ -1,4 +1,5 @@
 import copy
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -9,6 +10,8 @@ from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 from detzero_utils.box_utils import boxes_to_corners_3d
 
 from detzero_det.utils import model_nms_utils, centernet_utils, loss_utils
+from detzero_det.models.types import HeadPredDict, PredDict, TargetDict
+from detzero_det.datasets.types import BatchDict
 
 
 class SeparateHead(nn.Module):
@@ -40,7 +43,7 @@ class SeparateHead(nn.Module):
 
             self.__setattr__(cur_name, fc)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> HeadPredDict:
         ret_dict = {}
         for cur_name in self.sep_head_dict:
             ret_dict[cur_name] = self.__getattr__(cur_name)(x)
@@ -199,7 +202,12 @@ class CenterHead(nn.Module):
 
         return iou_targets.reshape(batch, -1, 1)
 
-    def assign_targets(self, gt_boxes, feature_map_size=None, **kwargs):
+    def assign_targets(
+        self,
+        gt_boxes: torch.Tensor,
+        feature_map_size: Optional[torch.Size] = None,
+        **kwargs,
+    ) -> TargetDict:
         """
         Args:
             gt_boxes: (B, M, 8)
@@ -263,7 +271,9 @@ class CenterHead(nn.Module):
         y = torch.clamp(x.sigmoid(), min=1e-4, max=1 - 1e-4)
         return y
 
-    def get_loss(self, tb_dict=None):
+    def get_loss(
+        self, tb_dict: Optional[Dict[str, float]] = None
+    ) -> Tuple[torch.Tensor, Dict[str, float]]:
         pred_dicts = self.forward_ret_dict['pred_dicts']
         target_dicts = self.forward_ret_dict['target_dicts']
 
@@ -312,7 +322,9 @@ class CenterHead(nn.Module):
         tb_dict['rpn_loss'] = loss.item()
         return loss, tb_dict
 
-    def generate_predicted_boxes(self, batch_size, pred_dicts):
+    def generate_predicted_boxes(
+        self, batch_size: int, pred_dicts: List[HeadPredDict]
+    ) -> List[PredDict]:
         post_process_cfg = self.model_cfg.POST_PROCESSING
         post_center_limit_range = torch.tensor(post_process_cfg.POST_CENTER_LIMIT_RANGE).cuda().float()
 
@@ -368,7 +380,9 @@ class CenterHead(nn.Module):
         return ret_dict
 
     @staticmethod
-    def reorder_rois_for_refining(batch_size, pred_dicts):
+    def reorder_rois_for_refining(
+        batch_size: int, pred_dicts: List[PredDict]
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         num_max_rois = max([len(cur_dict['pred_boxes']) for cur_dict in pred_dicts])
         num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
         pred_boxes = pred_dicts[0]['pred_boxes']
@@ -386,7 +400,11 @@ class CenterHead(nn.Module):
         return rois, roi_scores, roi_labels
 
     @staticmethod
-    def reorder_rois_for_refining_features(batch_size, pred_dicts, features):
+    def reorder_rois_for_refining_features(
+        batch_size: int,
+        pred_dicts: List[PredDict],
+        features: List[List[torch.Tensor]],
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         num_max_rois = max([len(cur_dict['pred_boxes']) for cur_dict in pred_dicts])
         num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
         pred_boxes = pred_dicts[0]['pred_boxes']
@@ -431,13 +449,15 @@ class CenterHead(nn.Module):
 
         return centers
 
-    def absl_to_relative(self, absolute):
+    def absl_to_relative(
+        self, absolute: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         a1 = (absolute[..., 0] - self.point_cloud_range[0]) / self.voxel_size[0] / self.feature_map_stride
         a2 = (absolute[..., 1] - self.point_cloud_range[1]) / self.voxel_size[1] / self.feature_map_stride
 
         return a1, a2
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: BatchDict) -> BatchDict:
 
         spatial_features_2d = data_dict['spatial_features_2d']
         x = self.shared_conv(spatial_features_2d)

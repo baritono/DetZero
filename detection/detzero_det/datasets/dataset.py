@@ -2,6 +2,7 @@ import copy
 import pickle
 from abc import abstractmethod
 from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -10,6 +11,7 @@ from detzero_utils import box_utils, common_utils
 
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
+from .types import AnnoDictEntry, BatchDict, DataDict, InputDict
 
 
 class DatasetTemplate(torch.utils.data.Dataset):
@@ -98,7 +100,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         """
         return None
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> DataDict:
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.infos)
         
@@ -140,7 +142,11 @@ class DatasetTemplate(torch.utils.data.Dataset):
             self._merge_all_iters_to_one_epoch = False
 
     @staticmethod
-    def get_sweep_idxs(current_info, sweep_count=[0, 0], current_idx=0):
+    def get_sweep_idxs(
+        current_info: dict,
+        sweep_count: List[int] = [0, 0],
+        current_idx: int = 0,
+    ) -> np.ndarray:
         """
         TODO: Docstrings
 
@@ -164,7 +170,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         return target_idx_list
 
     @staticmethod
-    def merge_sweeps(info, target_infos, points):
+    def merge_sweeps(info: dict, target_infos: List[dict], points: List[np.ndarray]) -> np.ndarray:
         """
         TODO: Docstrings
 
@@ -194,7 +200,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
 
         return point_clouds
 
-    def prepare_data(self, data_dict):
+    def prepare_data(self, data_dict: InputDict) -> DataDict:
         """
         Args:
             data_dict:
@@ -257,7 +263,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         return data_dict
 
     @staticmethod
-    def collate_batch(batch_list, _unused=False):
+    def collate_batch(batch_list: List[DataDict], _unused: bool = False) -> BatchDict:
         data_dict = defaultdict(list)
         batch_size = len(batch_list)
         tta = 'tta_original' in batch_list[0]
@@ -303,7 +309,12 @@ class DatasetTemplate(torch.utils.data.Dataset):
         return ret
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def generate_prediction_dicts(
+        batch_dict: BatchDict,
+        pred_dicts: List["PredDict"],
+        class_names: List[str],
+        output_path: Optional[str] = None,
+    ) -> List[AnnoDictEntry]:
         """
         This is the Waymo version. Further refactor for custom dataset later.
 

@@ -311,7 +311,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
     @staticmethod
     def generate_prediction_dicts(
         batch_dict: BatchDict,
-        pred_dicts: List["PredDict"],
+        pred_dicts: List[PredDict],
         class_names: List[str],
         output_path: Optional[str] = None,
     ) -> List[AnnoDictEntry]:

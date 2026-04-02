@@ -220,7 +220,7 @@ class BatchDict(TypedDict, total=False):
     roi_labels: torch.Tensor                # (B, num_rois)  int64
     roi_features: torch.Tensor              # (B, num_rois, C_feat)
     has_class_labels: bool
-    final_box_dicts: List["PredDict"]
+    final_box_dicts: List[PredDict]
     multihead_label_mapping: List[torch.Tensor]
 
 

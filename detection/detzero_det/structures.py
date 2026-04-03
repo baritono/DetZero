@@ -161,7 +161,7 @@ class PointCoordsDict(TypedDict, total=False):
 # Single-sample data dictionary (dataset / augmentor / processor pipeline)
 # ---------------------------------------------------------------------------
 
-class _DataDictRequired(TypedDict):
+class DataDictBase(TypedDict):
     """Required fields that are always present in the per-sample data dict."""
 
     points: np.ndarray
@@ -173,7 +173,7 @@ class _DataDictRequired(TypedDict):
     """
 
 
-class DataDict(_DataDictRequired, total=False):
+class DataDict(DataDictBase, total=False):
     """Per-sample dictionary flowing through the dataset / augmentation pipeline.
 
     Created by :meth:`DatasetTemplate.__getitem__` and passed through
@@ -183,7 +183,7 @@ class DataDict(_DataDictRequired, total=False):
     Required fields
     ---------------
     points : np.ndarray, shape (N, 3+C_in)
-        See :class:`_DataDictRequired`.
+        See :class:`DataDictBase`.
 
     Optional fields (present only during training or after specific steps)
     ----------------------------------------------------------------------
@@ -236,14 +236,14 @@ class DataDict(_DataDictRequired, total=False):
 # Batched pipeline dictionary (model forward pass)
 # ---------------------------------------------------------------------------
 
-class _BatchDictRequired(TypedDict):
+class BatchDictBase(TypedDict):
     """Fields that are always present once a batch has been collated."""
 
     batch_size: int
     """Number of samples in the current mini-batch (scalar int)."""
 
 
-class BatchDict(_BatchDictRequired, total=False):
+class BatchDict(BatchDictBase, total=False):
     """Batched dictionary flowing through the full model forward pass.
 
     Built by :meth:`DatasetTemplate.collate_batch` and then mutated in-place
@@ -253,7 +253,7 @@ class BatchDict(_BatchDictRequired, total=False):
     Required fields
     ---------------
     batch_size : int
-        See :class:`_BatchDictRequired`.
+        See :class:`BatchDictBase`.
 
     Raw voxelisation inputs (from collation)
     ----------------------------------------
@@ -418,7 +418,7 @@ class BatchDict(_BatchDictRequired, total=False):
 # DenseHead (CenterHead) prediction and target dicts
 # ---------------------------------------------------------------------------
 
-class _SeparateHeadPredDictRequired(TypedDict):
+class SeparateHeadPredDictBase(TypedDict):
     """Required per-head raw outputs always produced by :class:`SeparateHead`."""
 
     hm: torch.Tensor
@@ -455,7 +455,7 @@ class _SeparateHeadPredDictRequired(TypedDict):
     """
 
 
-class SeparateHeadPredDict(_SeparateHeadPredDictRequired, total=False):
+class SeparateHeadPredDict(SeparateHeadPredDictBase, total=False):
     """Per-task raw predictions produced by :class:`SeparateHead`.
 
     The required fields (hm, center, center_z, dim, rot) are always present.
@@ -570,11 +570,11 @@ class ProposalTargetDict(TypedDict):
     rcnn_cls_labels: torch.Tensor
 
 
-class _RoIHeadForwardDictRequired(ProposalTargetDict):
+class RoIHeadForwardDictBase(ProposalTargetDict):
     """Fields inherited from :class:`ProposalTargetDict` that are always set."""
 
 
-class RoIHeadForwardDict(_RoIHeadForwardDictRequired, total=False):
+class RoIHeadForwardDict(RoIHeadForwardDictBase, total=False):
     """State dictionary stored in ``RoIHeadTemplate.forward_ret_dict``.
 
     Extends :class:`ProposalTargetDict` with the canonical-frame GT boxes and
@@ -607,7 +607,7 @@ class RoIHeadForwardDict(_RoIHeadForwardDictRequired, total=False):
 # Model-building info dict
 # ---------------------------------------------------------------------------
 
-class _ModelInfoDictRequired(TypedDict):
+class ModelInfoDictBase(TypedDict):
     """Minimum set of fields required to build the first module."""
 
     module_list: List[Any]
@@ -629,7 +629,7 @@ class _ModelInfoDictRequired(TypedDict):
     """Physical size of one voxel ``[vx, vy, vz]`` in metres, dtype float32."""
 
 
-class ModelInfoDict(_ModelInfoDictRequired, total=False):
+class ModelInfoDict(ModelInfoDictBase, total=False):
     """Architecture-info dictionary used during :meth:`CenterPoint.build_networks`.
 
     Passed by reference and updated after each sub-module is constructed so
@@ -711,6 +711,13 @@ class RecallDict(TypedDict, total=False):
 # ---------------------------------------------------------------------------
 
 __all__ = [
+    # Base classes (required-fields-only layers)
+    "DataDictBase",
+    "BatchDictBase",
+    "SeparateHeadPredDictBase",
+    "RoIHeadForwardDictBase",
+    "ModelInfoDictBase",
+    # Full public types
     "AugMatrixInv",
     "MultiScale3DFeatures",
     "MultiScale3DStrides",

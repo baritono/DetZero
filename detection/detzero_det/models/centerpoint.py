@@ -332,7 +332,7 @@ class CenterPoint(nn.Module):
         gt_boxes = data_dict['gt_boxes'][batch_index]
 
         if recall_dict.__len__() == 0:
-            recall_dict = RecallDict({'gt': 0})
+            recall_dict: RecallDict = {'gt': 0}
             for cur_thresh in thresh_list:
                 recall_dict['roi_%s' % (str(cur_thresh))] = 0
                 recall_dict['rcnn_%s' % (str(cur_thresh))] = 0

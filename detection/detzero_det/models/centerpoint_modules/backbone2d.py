@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from ...structures import BatchDict
+
 
 class BaseBEVBackbone(nn.Module):
     """
@@ -86,12 +88,13 @@ class BaseBEVBackbone(nn.Module):
         if self.tb_visualize:
             self.tb_vis_step = getattr(model_cfg, 'TB_VIS_STEP', 20)
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: BatchDict) -> BatchDict:
         """
         Args:
-            data_dict:
-                spatial_features
+            data_dict (BatchDict):
+                spatial_features: (B, C*D, H, W)
         Returns:
+            data_dict (BatchDict) with ``spatial_features_2d`` (B, C_bev, H', W') added.
         """
         spatial_features = data_dict['spatial_features']
         ups = []

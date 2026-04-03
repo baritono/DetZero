@@ -2,9 +2,41 @@ import subprocess
 from pathlib import Path
 
 from .version import __version__
+from .structures import (
+    AugMatrixInv,
+    MultiScale3DFeatures,
+    MultiScale3DStrides,
+    PointFeaturesDict,
+    PointCoordsDict,
+    DataDict,
+    BatchDict,
+    SeparateHeadPredDict,
+    PredictionDict,
+    CenterHeadTargetDict,
+    ProposalTargetDict,
+    RoIHeadForwardDict,
+    ModelInfoDict,
+    AnnotationDict,
+    RecallDict,
+)
 
 __all__ = [
-    '__version__'
+    '__version__',
+    'AugMatrixInv',
+    'MultiScale3DFeatures',
+    'MultiScale3DStrides',
+    'PointFeaturesDict',
+    'PointCoordsDict',
+    'DataDict',
+    'BatchDict',
+    'SeparateHeadPredDict',
+    'PredictionDict',
+    'CenterHeadTargetDict',
+    'ProposalTargetDict',
+    'RoIHeadForwardDict',
+    'ModelInfoDict',
+    'AnnotationDict',
+    'RecallDict',
 ]
 
 

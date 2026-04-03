@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Optional
 
 import numpy as np
 import torch
@@ -6,6 +7,8 @@ import cumm.tensorview as tv
 from spconv.utils import Point2VoxelCPU3d as VoxelGenerator
 
 from detzero_utils import box_utils, common_utils
+
+from ...structures import DataDict
 
 
 class DataProcessor(object):
@@ -21,7 +24,7 @@ class DataProcessor(object):
             cur_processor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_processor_queue.append(cur_processor)
 
-    def mask_points_and_boxes_outside_range(self, data_dict=None, config=None):
+    def mask_points_and_boxes_outside_range(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
             return partial(self.mask_points_and_boxes_outside_range, config=config)
         mask = common_utils.mask_points_by_range(data_dict['points'], self.point_cloud_range)
@@ -36,7 +39,7 @@ class DataProcessor(object):
 
         return data_dict
 
-    def shuffle_points(self, data_dict=None, config=None):
+    def shuffle_points(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
             return partial(self.shuffle_points, config=config)
 
@@ -48,7 +51,7 @@ class DataProcessor(object):
 
         return data_dict
 
-    def transform_points_to_voxels_placeholder(self, data_dict=None, config=None):
+    def transform_points_to_voxels_placeholder(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         # just calculate grid size
         if data_dict is None:
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
@@ -58,7 +61,7 @@ class DataProcessor(object):
         
         return data_dict
         
-    def transform_points_to_voxels(self, data_dict=None, config=None):
+    def transform_points_to_voxels(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) \
                 / np.array(config.VOXEL_SIZE)
@@ -90,7 +93,7 @@ class DataProcessor(object):
         data_dict['voxel_num_points'] = num_points
         return data_dict
 
-    def sample_points(self, data_dict=None, config=None):
+    def sample_points(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
             return partial(self.sample_points, config=config)
 
@@ -122,15 +125,16 @@ class DataProcessor(object):
         data_dict['points'] = points[choice]
         return data_dict
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: DataDict) -> DataDict:
         """
         Args:
-            data_dict:
+            data_dict (DataDict):
                 points: (N, 3 + C_in)
                 gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
                 gt_names: optional, (N), string
                 ...
         Returns:
+            data_dict (DataDict) with voxels, voxel_coords, voxel_num_points added.
         """
         for cur_processor in self.data_processor_queue:
             data_dict = cur_processor(data_dict=data_dict)

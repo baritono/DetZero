@@ -4,23 +4,25 @@ import torch.nn as nn
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 
+from ...structures import BatchDict, ProposalTargetDict, RoIHeadForwardDict
+
 
 class ProposalTargetLayer(nn.Module):
     def __init__(self, roi_sampler_cfg):
         super().__init__()
         self.roi_sampler_cfg = roi_sampler_cfg
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict) -> ProposalTargetDict:
         """
         Args:
-            batch_dict:
-                batch_size:
+            batch_dict (BatchDict):
+                batch_size: int
                 rois: (B, num_rois, 7 + C)
                 roi_scores: (B, num_rois)
                 gt_boxes: (B, N, 7 + C + 1)
                 roi_labels: (B, num_rois)
         Returns:
-            batch_dict:
+            ProposalTargetDict:
                 rois: (B, M, 7 + C)
                 gt_of_rois: (B, M, 7 + C)
                 gt_iou_of_rois: (B, M)
@@ -54,10 +56,15 @@ class ProposalTargetLayer(nn.Module):
         else:
             raise NotImplementedError
 
-        targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 'gt_iou_of_rois': batch_roi_ious,
-                        'roi_scores': batch_roi_scores, 'roi_labels': batch_roi_labels,
-                        'reg_valid_mask': reg_valid_mask,
-                        'rcnn_cls_labels': batch_cls_labels}
+        targets_dict: ProposalTargetDict = {
+            'rois': batch_rois,
+            'gt_of_rois': batch_gt_of_rois,
+            'gt_iou_of_rois': batch_roi_ious,
+            'roi_scores': batch_roi_scores,
+            'roi_labels': batch_roi_labels,
+            'reg_valid_mask': reg_valid_mask,
+            'rcnn_cls_labels': batch_cls_labels,
+        }
 
         return targets_dict
 
@@ -237,24 +244,19 @@ class ProposalTargetLayer_CP(nn.Module):
         super().__init__()
         self.roi_sampler_cfg = roi_sampler_cfg
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict) -> RoIHeadForwardDict:
         """
         Args:
-            batch_dict:
-                batch_size:
+            batch_dict (BatchDict):
+                batch_size: int
                 rois: (B, num_rois, 7 + C)
                 roi_scores: (B, num_rois)
+                roi_features: (B, num_rois, C_feat)
                 gt_boxes: (B, N, 7 + C + 1)
                 roi_labels: (B, num_rois)
         Returns:
-            batch_dict:
-                rois: (B, M, 7 + C)
-                gt_of_rois: (B, M, 7 + C)
-                gt_iou_of_rois: (B, M)
-                roi_scores: (B, M)
-                roi_labels: (B, M)
-                reg_valid_mask: (B, M)
-                rcnn_cls_labels: (B, M)
+            RoIHeadForwardDict with rois, gt_of_rois, gt_iou_of_rois, roi_scores,
+            roi_labels, roi_features, reg_valid_mask, rcnn_cls_labels.
         """
         batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, \
         batch_roi_features = self.sample_rois_for_rcnn(
@@ -285,10 +287,16 @@ class ProposalTargetLayer_CP(nn.Module):
         else:
             raise NotImplementedError
 
-        targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 'gt_iou_of_rois': batch_roi_ious,
-                        'roi_scores': batch_roi_scores, 'roi_labels': batch_roi_labels,
-                        'roi_features': batch_roi_features,  'reg_valid_mask': reg_valid_mask,
-                        'rcnn_cls_labels': batch_cls_labels}
+        targets_dict: RoIHeadForwardDict = {
+            'rois': batch_rois,
+            'gt_of_rois': batch_gt_of_rois,
+            'gt_iou_of_rois': batch_roi_ious,
+            'roi_scores': batch_roi_scores,
+            'roi_labels': batch_roi_labels,
+            'roi_features': batch_roi_features,
+            'reg_valid_mask': reg_valid_mask,
+            'rcnn_cls_labels': batch_cls_labels,
+        }
 
         return targets_dict
 

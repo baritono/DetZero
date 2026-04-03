@@ -1,4 +1,5 @@
 import os
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -10,6 +11,13 @@ from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 from detzero_det.utils import model_nms_utils
 from detzero_det.utils.ensemble_utils.ensemble import wbf_online
 from detzero_det.models import centerpoint_modules as cp_modules
+from detzero_det.structures import (
+    AnnotationDict,
+    BatchDict,
+    ModelInfoDict,
+    PredictionDict,
+    RecallDict,
+)
 
 
 class CenterPoint(nn.Module):
@@ -24,7 +32,7 @@ class CenterPoint(nn.Module):
         self.second_stage = model_cfg.SECOND_STAGE
         self.module_list = self.build_networks()
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict):
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
 
@@ -56,8 +64,8 @@ class CenterPoint(nn.Module):
     def update_global_step(self):
         self.global_step += 1
 
-    def build_networks(self):
-        model_info_dict = {
+    def build_networks(self) -> List[nn.Module]:
+        model_info_dict: ModelInfoDict = {
             'module_list': [],
             'num_point_features': self.dataset.point_feature_encoder.num_point_features,
             'grid_size': self.dataset.grid_size,
@@ -207,7 +215,9 @@ class CenterPoint(nn.Module):
         boxes, scores, labels = wbf_online(boxes, scores, labels)
         return boxes, scores, labels
 
-    def post_processing(self, batch_dict):
+    def post_processing(
+        self, batch_dict: BatchDict
+    ) -> Tuple[List[PredictionDict], RecallDict]:
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
         
@@ -274,7 +284,7 @@ class CenterPoint(nn.Module):
                     thresh_list=post_process_cfg.RECALL_THRESH_LIST
                 )
 
-                record_dict = {
+            record_dict: PredictionDict = {
                     'pred_boxes': final_boxes,
                     'pred_scores': final_scores,
                     'pred_labels': final_labels
@@ -298,7 +308,7 @@ class CenterPoint(nn.Module):
         if not self.training and self.tta:
             final_boxes, final_scores, final_labels = self.test_time_augment(batch_dict, pred_dicts)
             pred_dicts = []
-            record_dict = {
+            record_dict: PredictionDict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
@@ -307,7 +317,13 @@ class CenterPoint(nn.Module):
         return pred_dicts, recall_dict
 
     @staticmethod
-    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None):
+    def generate_recall_record(
+        box_preds: torch.Tensor,
+        recall_dict: RecallDict,
+        batch_index: int,
+        data_dict: Optional[BatchDict] = None,
+        thresh_list: Optional[List[float]] = None,
+    ) -> RecallDict:
         if 'gt_boxes' not in data_dict:
             return recall_dict
 
@@ -316,7 +332,7 @@ class CenterPoint(nn.Module):
         gt_boxes = data_dict['gt_boxes'][batch_index]
 
         if recall_dict.__len__() == 0:
-            recall_dict = {'gt': 0}
+            recall_dict = RecallDict({'gt': 0})
             for cur_thresh in thresh_list:
                 recall_dict['roi_%s' % (str(cur_thresh))] = 0
                 recall_dict['rcnn_%s' % (str(cur_thresh))] = 0

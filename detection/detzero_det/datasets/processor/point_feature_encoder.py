@@ -2,6 +2,8 @@ import numpy as np
 
 from detzero_utils import common_utils
 
+from ...structures import DataDict
+
 
 class PointFeatureEncoder(object):
     def __init__(self, config, point_cloud_range=None):
@@ -15,14 +17,14 @@ class PointFeatureEncoder(object):
     def num_point_features(self):
         return getattr(self, self.point_encoding_config.encoding_type)(points=None)
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: DataDict) -> DataDict:
         """
         Args:
-            data_dict:
+            data_dict (DataDict):
                 points: (N, 3 + C_in)
                 ...
         Returns:
-            data_dict:
+            data_dict (DataDict):
                 points: (N, 3 + C_out),
                 use_lead_xyz: whether to use xyz as point-wise features
                 ...

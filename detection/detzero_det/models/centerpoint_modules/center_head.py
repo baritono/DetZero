@@ -164,7 +164,7 @@ class CenterHead(nn.Module):
         return heatmap, ret_boxes, inds, mask
 
     @torch.no_grad()
-    def _iou_target(self, example, preds_dict, task_id, out_size_factor):
+    def _iou_target(self, example: TargetDict, preds_dict: HeadPredDict, task_id: int, out_size_factor: int) -> torch.Tensor:
         batch, _, H, W = preds_dict['hm'].size()
         ys, xs = torch.meshgrid([torch.arange(0, H), torch.arange(0, W)])
         ys = ys.view(1, 1, H, W).repeat(batch, 1, 1, 1).to(preds_dict['hm'])
@@ -178,22 +178,22 @@ class CenterHead(nn.Module):
         batch_det_rot = torch.atan2(batch_det_rots, batch_det_rotc)
         batch_det_xs = xs + batch_det_reg[:, 0:1, :, :]
         batch_det_ys = ys + batch_det_reg[:, 1:2, :, :]
-        batch_det_xs = batch_det_xs * out_size_factor * self.voxel_size[0] + self.point_cloud_range [0]
-        batch_det_ys = batch_det_ys * out_size_factor * self.voxel_size[1] + self.point_cloud_range [1]
+        batch_det_xs = batch_det_xs * out_size_factor * self.voxel_size[0] + self.point_cloud_range[0]
+        batch_det_ys = batch_det_ys * out_size_factor * self.voxel_size[1] + self.point_cloud_range[1]
         # (B, 7, H, W)
         batch_box_preds = torch.cat([batch_det_xs, batch_det_ys, batch_det_hei, batch_det_dim, batch_det_rot], dim=1)
 
-        batch_box_preds = loss_utils._transpose_and_gather_feat(batch_box_preds, example['inds'][task_id])
+        batch_box_preds = loss_utils._transpose_and_gather_feat(batch_box_preds, example.inds[task_id])
 
-        target_box = example['target_boxes'][task_id]
+        target_box = example.target_boxes[task_id]
         batch_gt_dim = torch.exp(target_box[..., 3:6])
         batch_gt_reg = target_box[..., 0:2]
         batch_gt_hei = target_box[..., 2:3]
         batch_gt_rot = torch.atan2(target_box[..., -2:-1], target_box[..., -1:])
-        batch_gt_xs = loss_utils._transpose_and_gather_feat(xs, example['inds'][task_id]) + batch_gt_reg[..., 0:1]
-        batch_gt_ys = loss_utils._transpose_and_gather_feat(ys, example['inds'][task_id]) + batch_gt_reg[..., 1:2]
-        batch_gt_xs = batch_gt_xs * out_size_factor * self.voxel_size[0] + self.point_cloud_range [0]
-        batch_gt_ys = batch_gt_ys * out_size_factor * self.voxel_size[1] + self.point_cloud_range [1]
+        batch_gt_xs = loss_utils._transpose_and_gather_feat(xs, example.inds[task_id]) + batch_gt_reg[..., 0:1]
+        batch_gt_ys = loss_utils._transpose_and_gather_feat(ys, example.inds[task_id]) + batch_gt_reg[..., 1:2]
+        batch_gt_xs = batch_gt_xs * out_size_factor * self.voxel_size[0] + self.point_cloud_range[0]
+        batch_gt_ys = batch_gt_ys * out_size_factor * self.voxel_size[1] + self.point_cloud_range[1]
         # (B, max_obj, 7)
         batch_box_targets = torch.cat([batch_gt_xs, batch_gt_ys, batch_gt_hei, batch_gt_dim, batch_gt_rot], dim=-1)
 
@@ -209,10 +209,18 @@ class CenterHead(nn.Module):
         **kwargs,
     ) -> TargetDict:
         """
+        Assign heatmap and regression targets for all detection head groups.
+
         Args:
-            gt_boxes: (B, M, 8)
-            feature_map_size: (2) [H, W]
+            gt_boxes: torch.Tensor, shape (B, M, 8), dtype float32
+                Ground-truth boxes for the batch.  The last column is the
+                1-based class index.  ``M`` is the (padded) maximum object
+                count; zero-rows are ignored.
+            feature_map_size: torch.Size or sequence of 2 ints, (H, W)
+                Spatial size of the BEV feature map (height first).
+
         Returns:
+            TargetDict with per-head lists of target tensors.
         """
         feature_map_size = feature_map_size[::-1]  # [H, W] ==> [x, y]
         target_assigner_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
@@ -220,14 +228,8 @@ class CenterHead(nn.Module):
             gt_boxes = torch.cat((gt_boxes[:, :, :7], gt_boxes[:, :, -1].unsqueeze(2)), dim=2)
 
         batch_size = gt_boxes.shape[0]
-        ret_dict = {
-            'heatmaps': [],
-            'target_boxes': [],
-            'inds': [],
-            'masks': [],
-            'heatmap_masks': []
-        }
-        
+        ret_dict = TargetDict()
+
         all_names = np.array(['bg', *self.class_names])
         for idx, cur_class_names in enumerate(self.class_names_each_head):
             heatmap_list, target_boxes_list, inds_list, masks_list = [], [], [], []
@@ -261,10 +263,10 @@ class CenterHead(nn.Module):
                 inds_list.append(inds.to(gt_boxes_single_head.device))
                 masks_list.append(mask.to(gt_boxes_single_head.device))
 
-            ret_dict['heatmaps'].append(torch.stack(heatmap_list, dim=0))
-            ret_dict['target_boxes'].append(torch.stack(target_boxes_list, dim=0))
-            ret_dict['inds'].append(torch.stack(inds_list, dim=0))
-            ret_dict['masks'].append(torch.stack(masks_list, dim=0))
+            ret_dict.heatmaps.append(torch.stack(heatmap_list, dim=0))
+            ret_dict.target_boxes.append(torch.stack(target_boxes_list, dim=0))
+            ret_dict.inds.append(torch.stack(inds_list, dim=0))
+            ret_dict.masks.append(torch.stack(masks_list, dim=0))
         return ret_dict
 
     def sigmoid(self, x):
@@ -274,8 +276,17 @@ class CenterHead(nn.Module):
     def get_loss(
         self, tb_dict: Optional[Dict[str, float]] = None
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        pred_dicts = self.forward_ret_dict['pred_dicts']
-        target_dicts = self.forward_ret_dict['target_dicts']
+        """
+        Compute the total training loss across all detection head groups.
+
+        Returns:
+            loss: torch.Tensor, scalar — weighted sum of heatmap and
+                regression (and optionally IoU) losses.
+            tb_dict: Dict[str, float] — per-head scalar metrics for
+                TensorBoard (hm_loss, loc_loss, iou_loss per head index).
+        """
+        pred_dicts: List[HeadPredDict] = self.forward_ret_dict['pred_dicts']
+        target_dicts: TargetDict = self.forward_ret_dict['target_dicts']
 
         if tb_dict is None:
             tb_dict = {}
@@ -283,17 +294,17 @@ class CenterHead(nn.Module):
 
         for idx, pred_dict in enumerate(pred_dicts):
             pred_dict['hm'] = self.sigmoid(pred_dict['hm'])
-            hm_loss = self.hm_loss_func(pred_dict['hm'], target_dicts['heatmaps'][idx])
+            hm_loss = self.hm_loss_func(pred_dict['hm'], target_dicts.heatmaps[idx])
             hm_loss *= self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']
 
-            target_boxes = target_dicts['target_boxes'][idx]
+            target_boxes = target_dicts.target_boxes[idx]
             if self.iou_weight > 0:
                 pred_boxes = torch.cat([pred_dict[head_name] for head_name in self.separate_head_cfg.HEAD_ORDER[:-1]], dim=1)
             else:
                 pred_boxes = torch.cat([pred_dict[head_name] for head_name in self.separate_head_cfg.HEAD_ORDER], dim=1)
             
             reg_loss = self.reg_loss_func(
-                pred_boxes, target_dicts['masks'][idx], target_dicts['inds'][idx], target_boxes
+                pred_boxes, target_dicts.masks[idx], target_dicts.inds[idx], target_boxes
             )
             temp_loss = (reg_loss * reg_loss.new_tensor(self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['code_weights']))
             tb_dict['center_loss_head_%d' % idx] = (temp_loss[0:2].sum()).item()
@@ -312,7 +323,7 @@ class CenterHead(nn.Module):
                 pred_dict['iou'] = pred_dict['iou']
                 out_size_factor = self.feature_map_stride
                 iou_targets = self._iou_target(target_dicts, pred_dict, idx, out_size_factor)
-                iou_loss = self.reg_loss_func(pred_dict['iou'], target_dicts['masks'][idx], target_dicts['inds'][idx], iou_targets)
+                iou_loss = self.reg_loss_func(pred_dict['iou'], target_dicts.masks[idx], target_dicts.inds[idx], iou_targets)
                 loss += self.iou_weight * iou_loss.sum()
                 tb_dict['iou_loss_head_%d' % idx] = iou_loss.item()
 
@@ -325,24 +336,43 @@ class CenterHead(nn.Module):
     def generate_predicted_boxes(
         self, batch_size: int, pred_dicts: List[HeadPredDict]
     ) -> List[PredDict]:
+        """
+        Decode heatmap head outputs into 3-D bounding boxes.
+
+        Args:
+            batch_size: int
+                Number of samples in the batch.
+            pred_dicts: List[HeadPredDict], length = num_heads
+                Raw predictions from each :class:`SeparateHead`.
+                Each entry contains tensors of shape ``(B, C, H, W)``.
+
+        Returns:
+            List[PredDict], length = batch_size.
+            Each :class:`PredDict` holds the NMS-filtered detections for one
+            sample:
+
+            * ``pred_boxes``: shape ``(N, 7)`` float32 — ``[x, y, z, dx, dy, dz, yaw]``
+            * ``pred_scores``: shape ``(N,)`` float32 — confidence in ``[0, 1]``
+            * ``pred_labels``: shape ``(N,)`` int64 — 1-based class index
+        """
         post_process_cfg = self.model_cfg.POST_PROCESSING
         post_center_limit_range = torch.tensor(post_process_cfg.POST_CENTER_LIMIT_RANGE).cuda().float()
 
-        ret_dict = [{
-            'pred_boxes': [],
-            'pred_scores': [],
-            'pred_labels': [],
-        } for k in range(batch_size)]
+        # Accumulate per-head per-sample predictions (as plain lists during
+        # the multi-head loop; wrapped into PredDict at the end).
+        boxes_list:  List[List[torch.Tensor]] = [[] for _ in range(batch_size)]
+        scores_list: List[List[torch.Tensor]] = [[] for _ in range(batch_size)]
+        labels_list: List[List[torch.Tensor]] = [[] for _ in range(batch_size)]
 
         for idx, pred_dict in enumerate(pred_dicts):
-            batch_hm = pred_dict['hm'].sigmoid()
-            batch_center = pred_dict['center']
-            batch_center_z = pred_dict['center_z']
-            batch_dim = pred_dict['dim'].exp()
-            batch_rot_cos = pred_dict['rot'][:, 0].unsqueeze(dim=1)
-            batch_rot_sin = pred_dict['rot'][:, 1].unsqueeze(dim=1)
-            batch_iou = pred_dict['iou'] if self.iou_weight > 0 else None
-            batch_vel = pred_dict['vel'] if 'vel' in self.separate_head_cfg.HEAD_ORDER else None
+            batch_hm: torch.Tensor = pred_dict['hm'].sigmoid()
+            batch_center: torch.Tensor = pred_dict['center']
+            batch_center_z: torch.Tensor = pred_dict['center_z']
+            batch_dim: torch.Tensor = pred_dict['dim'].exp()
+            batch_rot_cos: torch.Tensor = pred_dict['rot'][:, 0].unsqueeze(dim=1)
+            batch_rot_sin: torch.Tensor = pred_dict['rot'][:, 1].unsqueeze(dim=1)
+            batch_iou: Optional[torch.Tensor] = pred_dict['iou'] if self.iou_weight > 0 else None
+            batch_vel: Optional[torch.Tensor] = pred_dict['vel'] if 'vel' in self.separate_head_cfg.HEAD_ORDER else None
 
             final_pred_dicts = centernet_utils.decode_bbox_from_heatmap(
                 heatmap=batch_hm, rot_cos=batch_rot_cos, rot_sin=batch_rot_sin,
@@ -368,35 +398,52 @@ class CenterHead(nn.Module):
                     final_dict['pred_scores'] = selected_scores
                     final_dict['pred_labels'] = final_dict['pred_labels'][selected]
 
-                ret_dict[k]['pred_boxes'].append(final_dict['pred_boxes'])
-                ret_dict[k]['pred_scores'].append(final_dict['pred_scores'])
-                ret_dict[k]['pred_labels'].append(final_dict['pred_labels'])
+                boxes_list[k].append(final_dict['pred_boxes'])
+                scores_list[k].append(final_dict['pred_scores'])
+                labels_list[k].append(final_dict['pred_labels'])
 
-        for k in range(batch_size):
-            ret_dict[k]['pred_boxes'] = torch.cat(ret_dict[k]['pred_boxes'], dim=0)
-            ret_dict[k]['pred_scores'] = torch.cat(ret_dict[k]['pred_scores'], dim=0)
-            ret_dict[k]['pred_labels'] = torch.cat(ret_dict[k]['pred_labels'], dim=0) + 1
-
-        return ret_dict
+        return [
+            PredDict(
+                pred_boxes=torch.cat(boxes_list[k], dim=0),
+                pred_scores=torch.cat(scores_list[k], dim=0),
+                pred_labels=torch.cat(labels_list[k], dim=0) + 1,
+            )
+            for k in range(batch_size)
+        ]
 
     @staticmethod
     def reorder_rois_for_refining(
         batch_size: int, pred_dicts: List[PredDict]
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        num_max_rois = max([len(cur_dict['pred_boxes']) for cur_dict in pred_dicts])
+        """
+        Pack per-sample :class:`PredDict` results into padded batch tensors
+        for the second-stage ROI head.
+
+        Args:
+            batch_size: int
+            pred_dicts: List[PredDict], length = batch_size.
+                Each entry holds decoded detections for one sample.
+
+        Returns:
+            rois: torch.Tensor, shape (B, num_max_rois, 7), dtype float32
+                Zero-padded proposal boxes ``[x, y, z, dx, dy, dz, yaw]``.
+            roi_scores: torch.Tensor, shape (B, num_max_rois), dtype float32
+            roi_labels: torch.Tensor, shape (B, num_max_rois), dtype int64
+        """
+        num_max_rois = max([len(p.pred_boxes) for p in pred_dicts])
         num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
-        pred_boxes = pred_dicts[0]['pred_boxes']
+        pred_boxes = pred_dicts[0].pred_boxes
 
         rois = pred_boxes.new_zeros((batch_size, num_max_rois, pred_boxes.shape[-1]))
         roi_scores = pred_boxes.new_zeros((batch_size, num_max_rois))
         roi_labels = pred_boxes.new_zeros((batch_size, num_max_rois)).long()
 
         for bs_idx in range(batch_size):
-            num_boxes = len(pred_dicts[bs_idx]['pred_boxes'])
-
-            rois[bs_idx, :num_boxes, :] = pred_dicts[bs_idx]['pred_boxes']
-            roi_scores[bs_idx, :num_boxes] = pred_dicts[bs_idx]['pred_scores']
-            roi_labels[bs_idx, :num_boxes] = pred_dicts[bs_idx]['pred_labels']
+            p: PredDict = pred_dicts[bs_idx]
+            num_boxes = len(p.pred_boxes)
+            rois[bs_idx, :num_boxes, :] = p.pred_boxes
+            roi_scores[bs_idx, :num_boxes] = p.pred_scores
+            roi_labels[bs_idx, :num_boxes] = p.pred_labels
         return rois, roi_scores, roi_labels
 
     @staticmethod
@@ -405,9 +452,27 @@ class CenterHead(nn.Module):
         pred_dicts: List[PredDict],
         features: List[List[torch.Tensor]],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        num_max_rois = max([len(cur_dict['pred_boxes']) for cur_dict in pred_dicts])
+        """
+        Pack per-sample :class:`PredDict` results and BEV features into
+        padded batch tensors for the second-stage ROI head.
+
+        Args:
+            batch_size: int
+            pred_dicts: List[PredDict], length = batch_size.
+            features: List[List[torch.Tensor]]
+                Outer list = feature scale groups; each inner list has
+                ``batch_size`` elements of shape ``(N_i, C_scale)``.
+
+        Returns:
+            rois: torch.Tensor, shape (B, num_max_rois, 7), dtype float32
+            roi_scores: torch.Tensor, shape (B, num_max_rois), dtype float32
+            roi_labels: torch.Tensor, shape (B, num_max_rois), dtype int64
+            roi_features: torch.Tensor, shape (B, num_max_rois, C_feat), dtype float32
+                ``C_feat`` = sum of feature channel dims across all scales.
+        """
+        num_max_rois = max([len(p.pred_boxes) for p in pred_dicts])
         num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
-        pred_boxes = pred_dicts[0]['pred_boxes']
+        pred_boxes = pred_dicts[0].pred_boxes
         feature_vector_length = sum([feat[0].shape[-1] for feat in features])
 
         rois = pred_boxes.new_zeros((batch_size, num_max_rois, pred_boxes.shape[-1]))
@@ -415,24 +480,39 @@ class CenterHead(nn.Module):
         roi_labels = pred_boxes.new_zeros((batch_size, num_max_rois)).long()
         roi_features = pred_boxes.new_zeros((batch_size, num_max_rois, feature_vector_length))
         for bs_idx in range(batch_size):
-            num_boxes = len(pred_dicts[bs_idx]['pred_boxes'])
-
-            rois[bs_idx, :num_boxes, :] = pred_dicts[bs_idx]['pred_boxes']
-            roi_scores[bs_idx, :num_boxes] = pred_dicts[bs_idx]['pred_scores']
-            roi_labels[bs_idx, :num_boxes] = pred_dicts[bs_idx]['pred_labels']
+            p: PredDict = pred_dicts[bs_idx]
+            num_boxes = len(p.pred_boxes)
+            rois[bs_idx, :num_boxes, :] = p.pred_boxes
+            roi_scores[bs_idx, :num_boxes] = p.pred_scores
+            roi_labels[bs_idx, :num_boxes] = p.pred_labels
             roi_features[bs_idx, :num_boxes] = torch.cat([feat[bs_idx] for feat in features], dim=-1)
         return rois, roi_scores, roi_labels, roi_features
 
-    def get_box_center(self, boxes):
-        # box [List]
+    def get_box_center(self, boxes: List[PredDict]) -> List[torch.Tensor]:
+        """
+        Extract representative 3-D centre points for each predicted box.
+
+        When ``num_point == 1`` the centre ``(x, y, z)`` is returned as-is.
+        When ``num_point == 5`` the centre plus four face-midpoints (front,
+        back, left, right at box height) are returned, concatenated along
+        the first dimension.
+
+        Args:
+            boxes: List[PredDict], length = batch_size.
+
+        Returns:
+            List[torch.Tensor], length = batch_size.
+            Each tensor has shape ``(num_point * N_i, 3)``, dtype float32,
+            where ``N_i`` is the number of detections in sample ``i``.
+        """
         centers = []
         for box in boxes:
-            if self.num_point == 1 or len(box['pred_boxes']) == 0:
-                centers.append(box['pred_boxes'][:, :3])
+            if self.num_point == 1 or len(box.pred_boxes) == 0:
+                centers.append(box.pred_boxes[:, :3])
 
             elif self.num_point == 5:
-                box3d = box['pred_boxes']
-                height = box['pred_boxes'][:, 2:3]
+                box3d: torch.Tensor = box.pred_boxes
+                height: torch.Tensor = box.pred_boxes[:, 2:3]
 
                 corners = boxes_to_corners_3d(box3d)
 
@@ -440,7 +520,7 @@ class CenterHead(nn.Module):
                 back_middle = torch.cat([(corners[:, 2, :2] + corners[:, 3, :2])/2, height], dim=-1)
                 left_middle = torch.cat([(corners[:, 0, :2] + corners[:, 3, :2])/2, height], dim=-1)
                 right_middle = torch.cat([(corners[:, 1, :2] + corners[:, 2, :2])/2, height], dim=-1)
-                points = torch.cat([box['pred_boxes'][:, :3], front_middle, back_middle, left_middle, \
+                points = torch.cat([box.pred_boxes[:, :3], front_middle, back_middle, left_middle,
                     right_middle], dim=0)
 
                 centers.append(points)

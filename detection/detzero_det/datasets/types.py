@@ -1,13 +1,14 @@
 """
 Typed schema definitions for the detection data pipeline.
 
-These TypedDict classes document the structure, shapes, dtypes, and semantic
+These types document the structure, shapes, dtypes, and semantic
 meanings of the dictionaries that flow through the detection pipeline —
 from raw dataset loading through voxelisation to model input and output.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 from typing import TypedDict
 
@@ -228,16 +229,20 @@ class BatchDict(TypedDict, total=False):
 # PredDict
 # ---------------------------------------------------------------------------
 
-class PredDict(TypedDict):
+@dataclass
+class PredDict:
     """
-    Per-sample prediction dict returned by the detection model at inference.
+    Per-sample prediction result returned by the detection model at inference.
 
     Produced by :meth:`CenterHead.generate_predicted_boxes` (first-stage) or
     the second-stage ROI head, and gathered in
     :meth:`CenterPoint.post_processing`.
 
-    Fields
-    ------
+    Attribute access is preferred (``pred.pred_boxes``).  Dict-style access
+    (``pred['pred_boxes']``) is also supported for backward compatibility.
+
+    Attributes
+    ----------
     pred_boxes : torch.Tensor, shape (N, 7), dtype float32
         Detected 3-D bounding boxes in the LIDAR frame.
         Each row: ``[x, y, z, dx, dy, dz, yaw]``.
@@ -251,9 +256,24 @@ class PredDict(TypedDict):
         ``1`` = Vehicle, ``2`` = Pedestrian, ``3`` = Cyclist.
     """
 
-    pred_boxes: torch.Tensor    # (N, 7)  float32
-    pred_scores: torch.Tensor   # (N,)    float32
-    pred_labels: torch.Tensor   # (N,)    int64
+    pred_boxes: torch.Tensor    # (N, 7)  float32  — [x, y, z, dx, dy, dz, yaw]
+    pred_scores: torch.Tensor   # (N,)    float32  — confidence in [0, 1]
+    pred_labels: torch.Tensor   # (N,)    int64    — 1-based class index
+
+    def __getitem__(self, key: str) -> torch.Tensor:
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(key)
+
+    def __setitem__(self, key: str, value: torch.Tensor) -> None:
+        if not hasattr(self, key):
+            raise KeyError(key)
+        setattr(self, key, value)
+
+    def __len__(self) -> int:
+        return len(self.pred_boxes)
+
 
 
 # ---------------------------------------------------------------------------

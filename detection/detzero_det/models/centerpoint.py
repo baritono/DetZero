@@ -138,29 +138,52 @@ class CenterPoint(nn.Module):
         data_dict: BatchDict,
         pred_dicts: List[PredDict],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Inverse-transform TTA predictions back to the original frame and fuse
+        them with Weighted Box Fusion (WBF).
+
+        Args:
+            data_dict: BatchDict
+                Must contain ``'tta_ops'`` (list of TTA variant names) and
+                ``'batch_size'`` (= true batch_size × num_tta_variants).
+            pred_dicts: List[PredDict], length = batch_size × num_tta_variants
+                Each :class:`PredDict` holds the detections for one
+                (sample, TTA-variant) pair.
+
+        Returns:
+            boxes:  torch.Tensor, shape (B, N_fused, 7), dtype float32
+            scores: torch.Tensor, shape (B, N_fused, 1), dtype float32
+            labels: torch.Tensor, shape (B, N_fused, 1), dtype int64
+        """
         tta_ops = data_dict["tta_ops"]
         tta_num = len(tta_ops)
         bs = int(data_dict["batch_size"] // tta_num)
-        max_num = max([len(x["pred_boxes"]) for x in pred_dicts])
+        max_num = max([len(p.pred_boxes) for p in pred_dicts])
         box_num = []
 
-        # process the boxes from dict into Tensor
-        boxes = torch.zeros((data_dict["batch_size"],
-                             max_num,
-                             pred_dicts[0]["pred_boxes"].shape[-1]),
-                             dtype=pred_dicts[0]["pred_boxes"].dtype,
-                             device=pred_dicts[0]["pred_boxes"].device)
-        scores = torch.zeros((data_dict["batch_size"], max_num, 1),
-                              dtype=pred_dicts[0]["pred_scores"].dtype,
-                              device=pred_dicts[0]["pred_scores"].device)
-        labels = torch.zeros((data_dict["batch_size"], max_num, 1),
-                              dtype=pred_dicts[0]["pred_labels"].dtype,
-                              device=pred_dicts[0]["pred_labels"].device)
+        # Pack predictions into padded tensors for vectorised TTA inversion.
+        ref: PredDict = pred_dicts[0]
+        boxes = torch.zeros(
+            (data_dict["batch_size"], max_num, ref.pred_boxes.shape[-1]),
+            dtype=ref.pred_boxes.dtype,
+            device=ref.pred_boxes.device,
+        )
+        scores = torch.zeros(
+            (data_dict["batch_size"], max_num, 1),
+            dtype=ref.pred_scores.dtype,
+            device=ref.pred_scores.device,
+        )
+        labels = torch.zeros(
+            (data_dict["batch_size"], max_num, 1),
+            dtype=ref.pred_labels.dtype,
+            device=ref.pred_labels.device,
+        )
         for i, pred in enumerate(pred_dicts):
-            boxes[i, :pred["pred_boxes"].__len__(), :] = pred["pred_boxes"]
-            scores[i, :pred["pred_scores"].__len__(), 0] = pred["pred_scores"]
-            labels[i, :pred["pred_labels"].__len__(), 0] = pred["pred_labels"]
-            box_num.append(pred["pred_boxes"].__len__())
+            n = len(pred.pred_boxes)
+            boxes[i, :n, :] = pred.pred_boxes
+            scores[i, :n, 0] = pred.pred_scores
+            labels[i, :n, 0] = pred.pred_labels
+            box_num.append(n)
 
         # scatter the original and augmented predict boxes
         boxes = boxes.reshape(bs, tta_num, max_num, -1)
@@ -216,14 +239,35 @@ class CenterPoint(nn.Module):
         return boxes, scores, labels
 
     def post_processing(self, batch_dict: BatchDict) -> Tuple[List[PredDict], RecallDict]:
+        """
+        Apply NMS and assemble per-sample :class:`PredDict` results.
+
+        Args:
+            batch_dict: BatchDict
+                Must contain ``'batch_size'`` and either
+                ``'final_box_dicts'`` (first-stage) or
+                ``'batch_box_preds'`` / ``'batch_cls_preds'`` (second-stage).
+
+        Returns:
+            pred_dicts: List[PredDict], length = batch_size (or 1 when TTA
+                is active, as all variants are fused into a single result).
+                Each :class:`PredDict` holds:
+
+                * ``pred_boxes``:  shape ``(N, 7)`` float32
+                * ``pred_scores``: shape ``(N,)``  float32
+                * ``pred_labels``: shape ``(N,)``  int64 (1-based)
+
+            recall_dict: RecallDict — recall accumulators at each IoU
+                threshold.
+        """
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
         
         if self.second_stage:
-            recall_dict = {}
-            pred_dicts = []
+            recall_dict: RecallDict = {}
+            pred_dicts: List[PredDict] = []
             for index in range(batch_size):
-                box_preds = batch_dict['batch_box_preds'][index]
+                box_preds: torch.Tensor = batch_dict['batch_box_preds'][index]
                 src_box_preds = box_preds
 
                 if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
@@ -282,21 +326,18 @@ class CenterPoint(nn.Module):
                     thresh_list=post_process_cfg.RECALL_THRESH_LIST
                 )
 
-                record_dict = {
-                    'pred_boxes': final_boxes,
-                    'pred_scores': final_scores,
-                    'pred_labels': final_labels
-                }
-                pred_dicts.append(record_dict)
+                pred_dicts.append(PredDict(
+                    pred_boxes=final_boxes,
+                    pred_scores=final_scores,
+                    pred_labels=final_labels,
+                ))
         else:
             pred_dicts = batch_dict['final_box_dicts']
             recall_dict = {}
             for index in range(batch_size):
-                pred_boxes = pred_dicts[index]['pred_boxes']
-
                 # TODO: check the order of executing TTA
                 recall_dict = self.generate_recall_record(
-                    box_preds=pred_boxes,
+                    box_preds=pred_dicts[index].pred_boxes,
                     recall_dict=recall_dict,
                     batch_index=0 if self.tta else index,
                     data_dict=batch_dict,
@@ -305,13 +346,11 @@ class CenterPoint(nn.Module):
 
         if not self.training and self.tta:
             final_boxes, final_scores, final_labels = self.test_time_augment(batch_dict, pred_dicts)
-            pred_dicts = []
-            record_dict = {
-                'pred_boxes': final_boxes,
-                'pred_scores': final_scores,
-                'pred_labels': final_labels
-            }
-            pred_dicts.append(record_dict)
+            pred_dicts = [PredDict(
+                pred_boxes=final_boxes,
+                pred_scores=final_scores,
+                pred_labels=final_labels,
+            )]
         return pred_dicts, recall_dict
 
     @staticmethod
@@ -322,6 +361,26 @@ class CenterPoint(nn.Module):
         data_dict: Optional[BatchDict] = None,
         thresh_list: Optional[List[float]] = None,
     ) -> RecallDict:
+        """
+        Accumulate recall counts for one sample.
+
+        Args:
+            box_preds: torch.Tensor, shape (N, 7), dtype float32
+                Predicted boxes (or first-stage ROI proposals) for IoU
+                matching.  Only ``[:, :7]`` is used.
+            recall_dict: RecallDict
+                Running accumulator updated in-place and returned.
+            batch_index: int
+                Index into ``data_dict['gt_boxes']`` for this sample.
+            data_dict: BatchDict or None
+                Must contain ``'gt_boxes'`` for recall to be computed.
+            thresh_list: List[float] or None
+                IoU thresholds at which recall is evaluated (e.g.
+                ``[0.3, 0.5, 0.7]``).
+
+        Returns:
+            Updated RecallDict with running counts.
+        """
         if 'gt_boxes' not in data_dict:
             return recall_dict
 

@@ -1,14 +1,15 @@
 """
 Typed schema definitions for detection model inputs and outputs.
 
-These TypedDict / NamedTuple classes document the structures that flow
-between the detection model's sub-modules (VFE → Backbone3D → MapToBEV →
-Backbone2D → CenterHead / ROI Head) and the training / inference entry
-points.
+These dataclass / TypedDict / NamedTuple classes document the structures
+that flow between the detection model's sub-modules (VFE → Backbone3D →
+MapToBEV → Backbone2D → CenterHead / ROI Head) and the training / inference
+entry points.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Dict, List, NamedTuple, Optional, Tuple
 from typing import TypedDict
 
@@ -64,15 +65,20 @@ class HeadPredDict(TypedDict, total=False):
 # TargetDict
 # ---------------------------------------------------------------------------
 
-class TargetDict(TypedDict):
+@dataclass
+class TargetDict:
     """
     Ground-truth target tensors produced by
     :meth:`CenterHead.assign_targets`.
 
-    Each list entry corresponds to one detection head group.
+    One ``TargetDict`` covers all detection head groups simultaneously; each
+    attribute is a list whose ``i``-th element corresponds to head group
+    ``i``.  Attribute access (``targets.heatmaps``) is preferred.  Dict-style
+    access (``targets['heatmaps']``) is also supported for backward
+    compatibility.
 
-    Fields
-    ------
+    Attributes
+    ----------
     heatmaps : List[torch.Tensor]
         Per-head Gaussian heatmaps, each shape
         ``(B, C_head, H, W)``, dtype float32.
@@ -92,11 +98,22 @@ class TargetDict(TypedDict):
         each shape ``(B, C_head, H, W)``, dtype bool.
     """
 
-    heatmaps: List[torch.Tensor]
-    target_boxes: List[torch.Tensor]
-    inds: List[torch.Tensor]
-    masks: List[torch.Tensor]
-    heatmap_masks: List[torch.Tensor]
+    heatmaps: List[torch.Tensor] = field(default_factory=list)
+    target_boxes: List[torch.Tensor] = field(default_factory=list)
+    inds: List[torch.Tensor] = field(default_factory=list)
+    masks: List[torch.Tensor] = field(default_factory=list)
+    heatmap_masks: List[torch.Tensor] = field(default_factory=list)
+
+    def __getitem__(self, key: str) -> List[torch.Tensor]:
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(key)
+
+    def __setitem__(self, key: str, value: List[torch.Tensor]) -> None:
+        if not hasattr(self, key):
+            raise KeyError(key)
+        setattr(self, key, value)
 
 
 # ---------------------------------------------------------------------------

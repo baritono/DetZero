@@ -316,47 +316,54 @@ class DatasetTemplate(torch.utils.data.Dataset):
         output_path: Optional[str] = None,
     ) -> List[AnnoDictEntry]:
         """
-        This is the Waymo version. Further refactor for custom dataset later.
-
+        Convert model predictions to serialisable annotation entries.
 
         Args:
-            batch_dict:
-                frame_id:
-            pred_dicts: list of pred_dicts
-                pred_boxes: (N, 7), Tensor
-                pred_scores: (N), Tensor
-                pred_labels: (N), Tensor
-            class_names:
-            output_path:
+            batch_dict: BatchDict
+                Must contain ``'sequence_name'``, ``'frame_id'``, and
+                ``'pose'`` arrays, each of length ``batch_size``.
+            pred_dicts: List[PredDict], length = batch_size.
+                Per-sample detection results.  Each :class:`PredDict` has:
+
+                * ``pred_boxes``:  shape ``(N, 7)`` float32 — LIDAR-frame
+                  boxes ``[x, y, z, dx, dy, dz, yaw]``.
+                * ``pred_scores``: shape ``(N,)`` float32 — confidence.
+                * ``pred_labels``: shape ``(N,)`` int64 — 1-based class
+                  index.
+
+            class_names: List[str]
+                Ordered class name list (index ``i`` maps to label ``i+1``).
+            output_path: str or None
+                Reserved for future disk-write logic; unused at present.
 
         Returns:
-            annos: list of detection results
+            List[AnnoDictEntry], length = batch_size.  Each entry contains
+            ``name``, ``score``, ``boxes_lidar``, ``sequence_name``,
+            ``frame_id``, and ``pose``.
         """
 
-        def get_template_prediction(num_samples):
-            ret_dict = {
+        def get_template_prediction(num_samples: int) -> dict:
+            return {
                 'name': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
                 'boxes_lidar': np.zeros([num_samples, 9])
             }
-            return ret_dict
 
-        def generate_single_sample_dict(box_dict):
-            pred_scores = box_dict['pred_scores'].cpu().numpy()
-            pred_boxes = box_dict['pred_boxes'].cpu().numpy()
-            pred_labels = box_dict['pred_labels'].cpu().numpy()
+        def generate_single_sample_dict(pred: PredDict) -> dict:
+            pred_scores: np.ndarray = pred.pred_scores.cpu().numpy()
+            pred_boxes: np.ndarray = pred.pred_boxes.cpu().numpy()
+            pred_labels: np.ndarray = pred.pred_labels.cpu().numpy()
             pred_dict = get_template_prediction(pred_scores.shape[0])
             if pred_scores.shape[0] == 0:
                 return pred_dict
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['score'] = pred_scores
             pred_dict['boxes_lidar'] = pred_boxes
-
             return pred_dict
 
         annos = []
-        for index, box_dict in enumerate(pred_dicts):
-            single_pred_dict = generate_single_sample_dict(box_dict)
+        for index, pred in enumerate(pred_dicts):
+            single_pred_dict = generate_single_sample_dict(pred)
             single_pred_dict['sequence_name'] = batch_dict['sequence_name'][index]
             single_pred_dict['frame_id'] = batch_dict['frame_id'][index]
             single_pred_dict['pose'] = batch_dict['pose'][index]

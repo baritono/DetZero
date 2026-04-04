@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import torch
 import torch.nn as nn
@@ -222,7 +222,7 @@ class CenterPoint(nn.Module):
         batch_size = batch_dict['batch_size']
         
         if self.second_stage:
-            recall_dict = {}
+            recall_dict: RecallDict = cast(RecallDict, {})
             pred_dicts = []
             for index in range(batch_size):
                 box_preds = batch_dict['batch_box_preds'][index]
@@ -262,7 +262,7 @@ class CenterPoint(nn.Module):
 
                     if batch_dict.get('has_class_labels', False):
                         label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
-                        label_preds = batch_dict[label_key][index]
+                        label_preds = batch_dict[label_key][index]  # type: ignore[literal-required]
                     else:
                         label_preds = label_preds
                     scores = torch.sqrt(torch.sigmoid(cls_preds).reshape(-1) * batch_dict['roi_scores'][index].reshape(-1))
@@ -285,14 +285,14 @@ class CenterPoint(nn.Module):
                 )
 
             record_dict: PredictionDict = {
-                    'pred_boxes': final_boxes,
-                    'pred_scores': final_scores,
-                    'pred_labels': final_labels
-                }
-                pred_dicts.append(record_dict)
+                'pred_boxes': final_boxes,
+                'pred_scores': final_scores,
+                'pred_labels': final_labels,
+            }
+            pred_dicts.append(record_dict)
         else:
             pred_dicts = batch_dict['final_box_dicts']
-            recall_dict = {}
+            recall_dict = cast(RecallDict, {})
             for index in range(batch_size):
                 pred_boxes = pred_dicts[index]['pred_boxes']
 
@@ -308,7 +308,7 @@ class CenterPoint(nn.Module):
         if not self.training and self.tta:
             final_boxes, final_scores, final_labels = self.test_time_augment(batch_dict, pred_dicts)
             pred_dicts = []
-            record_dict: PredictionDict = {
+            record_dict = {  # type: ignore[assignment]
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
@@ -332,10 +332,10 @@ class CenterPoint(nn.Module):
         gt_boxes = data_dict['gt_boxes'][batch_index]
 
         if recall_dict.__len__() == 0:
-            recall_dict: RecallDict = {'gt': 0}
+            recall_dict = cast(RecallDict, {'gt': 0})
             for cur_thresh in thresh_list:
-                recall_dict['roi_%s' % (str(cur_thresh))] = 0
-                recall_dict['rcnn_%s' % (str(cur_thresh))] = 0
+                recall_dict['roi_%s' % (str(cur_thresh))] = 0    # type: ignore[literal-required]
+                recall_dict['rcnn_%s' % (str(cur_thresh))] = 0   # type: ignore[literal-required]
 
         cur_gt = gt_boxes
         k = cur_gt.__len__() - 1
@@ -354,13 +354,13 @@ class CenterPoint(nn.Module):
 
             for cur_thresh in thresh_list:
                 if iou3d_rcnn.shape[0] == 0:
-                    recall_dict['rcnn_%s' % str(cur_thresh)] += 0
+                    recall_dict['rcnn_%s' % str(cur_thresh)] += 0    # type: ignore[literal-required]
                 else:
                     rcnn_recalled = (iou3d_rcnn.max(dim=0)[0] > cur_thresh).sum().item()
-                    recall_dict['rcnn_%s' % str(cur_thresh)] += rcnn_recalled
+                    recall_dict['rcnn_%s' % str(cur_thresh)] += rcnn_recalled  # type: ignore[literal-required]
                 if rois is not None:
                     roi_recalled = (iou3d_roi.max(dim=0)[0] > cur_thresh).sum().item()
-                    recall_dict['roi_%s' % str(cur_thresh)] += roi_recalled
+                    recall_dict['roi_%s' % str(cur_thresh)] += roi_recalled    # type: ignore[literal-required]
 
             recall_dict['gt'] += cur_gt.shape[0]
         else:

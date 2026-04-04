@@ -45,7 +45,7 @@ class DataAugmentor(object):
     
     def random_world_flip(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_flip, config=config)
+            return partial(self.random_world_flip, config=config)  # type: ignore[return-value]
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         
         return_noise_flag = False
@@ -82,7 +82,7 @@ class DataAugmentor(object):
 
     def random_world_rotation(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_rotation, config=config)
+            return partial(self.random_world_rotation, config=config)  # type: ignore[return-value]
         rot_range = config['WORLD_ROT_ANGLE']
         if not isinstance(rot_range, list):
             rot_range = [-rot_range, rot_range]
@@ -118,7 +118,7 @@ class DataAugmentor(object):
 
     def random_world_scaling(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_scaling, config=config)
+            return partial(self.random_world_scaling, config=config)  # type: ignore[return-value]
 
         return_noise_flag = False
         if config.get('RETURN_NOISE_SCALE', None) is not None:
@@ -149,7 +149,7 @@ class DataAugmentor(object):
 
     def random_world_translation(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_translation, config=config)
+            return partial(self.random_world_translation, config=config)  # type: ignore[return-value]
 
         return_noise_flag = False
         if config.get('RETURN_NOISE_TRANSLATION', None) is not None:

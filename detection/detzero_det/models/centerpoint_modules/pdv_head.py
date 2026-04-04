@@ -396,8 +396,8 @@ class VoxelAggregationHead(RoIHeadTemplate):
         pooled_features_list = []
         ball_idxs_list = []
         for k, src_name in enumerate(self.pool_cfg.FEATURE_LOCATIONS):
-            point_coords = batch_dict['point_coords'][src_name]
-            point_features = batch_dict['point_features'][src_name]
+            point_coords = batch_dict['point_coords'][src_name]      # type: ignore[literal-required]
+            point_features = batch_dict['point_features'][src_name]   # type: ignore[literal-required]
             pool_layer = self.roi_grid_pool_layers[k]
 
             xyz = point_coords[:, 1:4]
@@ -585,10 +585,10 @@ class VoxelCenterHead(VoxelAggregationHead):
         point_coords: PointCoordsDict = {}
         for feature_location in self.model_cfg.VOXEL_AGGREGATION.FEATURE_LOCATIONS:
             # Voxel aggregation based on voxel centers
-            cur_coords = batch_dict['multi_scale_3d_features'][feature_location].indices
+            cur_coords = batch_dict['multi_scale_3d_features'][feature_location].indices       # type: ignore[literal-required]
             xyz = common_utils.get_voxel_centers(
                 cur_coords[:, 1:4],
-                downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],
+                downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],      # type: ignore[literal-required]
                 voxel_size=self.voxel_size,
                 point_cloud_range=self.point_cloud_range
             )
@@ -596,8 +596,8 @@ class VoxelCenterHead(VoxelAggregationHead):
             cur_coords[:, 1:4] = xyz
 
             # Input features for grid pooling module
-            point_features[feature_location] = batch_dict['multi_scale_3d_features'][feature_location].features
-            point_coords[feature_location] = cur_coords
+            point_features[feature_location] = batch_dict['multi_scale_3d_features'][feature_location].features  # type: ignore[literal-required]
+            point_coords[feature_location] = cur_coords  # type: ignore[literal-required]
         return point_features, point_coords
 
 
@@ -618,7 +618,7 @@ class PDVHead(VoxelAggregationHead):
         for feature_location in self.model_cfg.VOXEL_AGGREGATION.FEATURE_LOCATIONS:
             centroids = centroids_all[feature_location][:, :4]
             centroid_voxel_idxs = centroid_voxel_idxs_all[feature_location]
-            x_conv = batch_dict['multi_scale_3d_features'][feature_location]
+            x_conv = batch_dict['multi_scale_3d_features'][feature_location]  # type: ignore[literal-required]
             overlapping_voxel_feature_indices_nonempty, overlapping_voxel_feature_nonempty_mask = \
                 voxel_aggregation_utils.get_nonempty_voxel_feature_indices(centroid_voxel_idxs, x_conv)
 
@@ -632,7 +632,7 @@ class PDVHead(VoxelAggregationHead):
                 cur_coords = x_conv.indices[empty_mask]
                 xyz = common_utils.get_voxel_centers(
                     cur_coords[:, 1:4],
-                    downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],
+                    downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],  # type: ignore[literal-required]
                     voxel_size=self.voxel_size,
                     point_cloud_range=self.point_cloud_range
                 )
@@ -640,12 +640,12 @@ class PDVHead(VoxelAggregationHead):
                 cur_coords[:, 1:4] = xyz
                 voxel_points[empty_mask] = cur_coords
 
-                point_features[feature_location] = x_conv.features
-                point_coords[feature_location] = voxel_points
+                point_features[feature_location] = x_conv.features      # type: ignore[literal-required]
+                point_coords[feature_location] = voxel_points            # type: ignore[literal-required]
             else:
                 x_conv_features = torch.zeros((centroids.shape[0], x_conv.features.shape[-1]), dtype=x_conv.features.dtype, device=centroids.device)
                 x_conv_features[overlapping_voxel_feature_nonempty_mask] = x_conv.features[overlapping_voxel_feature_indices_nonempty]
 
-                point_features[feature_location] = x_conv_features[overlapping_voxel_feature_nonempty_mask]
-                point_coords[feature_location] = centroids[overlapping_voxel_feature_nonempty_mask]
+                point_features[feature_location] = x_conv_features[overlapping_voxel_feature_nonempty_mask]  # type: ignore[literal-required]
+                point_coords[feature_location] = centroids[overlapping_voxel_feature_nonempty_mask]           # type: ignore[literal-required]
         return point_features, point_coords

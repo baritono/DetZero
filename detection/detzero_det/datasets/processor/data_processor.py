@@ -26,7 +26,7 @@ class DataProcessor(object):
 
     def mask_points_and_boxes_outside_range(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.mask_points_and_boxes_outside_range, config=config)
+            return partial(self.mask_points_and_boxes_outside_range, config=config)  # type: ignore[return-value]
         mask = common_utils.mask_points_by_range(data_dict['points'], self.point_cloud_range)
         data_dict['points'] = data_dict['points'][mask]
 
@@ -41,7 +41,7 @@ class DataProcessor(object):
 
     def shuffle_points(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.shuffle_points, config=config)
+            return partial(self.shuffle_points, config=config)  # type: ignore[return-value]
 
         if config.SHUFFLE_ENABLED[self.mode]:
             points = data_dict['points']
@@ -57,7 +57,7 @@ class DataProcessor(object):
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
-            return partial(self.transform_points_to_voxels_placeholder, config=config)
+            return partial(self.transform_points_to_voxels_placeholder, config=config)  # type: ignore[return-value]
         
         return data_dict
         
@@ -67,7 +67,7 @@ class DataProcessor(object):
                 / np.array(config.VOXEL_SIZE)
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
-            return partial(self.transform_points_to_voxels, config=config)
+            return partial(self.transform_points_to_voxels, config=config)  # type: ignore[return-value]
 
         if self.voxel_generator is None:
             self.voxel_generator = VoxelGenerator(
@@ -95,7 +95,7 @@ class DataProcessor(object):
 
     def sample_points(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.sample_points, config=config)
+            return partial(self.sample_points, config=config)  # type: ignore[return-value]
 
         num_points = config.NUM_POINTS[self.mode]
         if num_points == -1:

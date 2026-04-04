@@ -1,9 +1,10 @@
 import copy
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
+from typing import cast
 from torch.nn.init import kaiming_normal_
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
@@ -57,11 +58,11 @@ class SeparateHead(nn.Module):
             SeparateHeadPredDict with one entry per configured sub-head
             (always hm, center, center_z, dim, rot; optionally vel, iou).
         """
-        ret_dict: SeparateHeadPredDict = {}
+        ret_dict: Dict[str, Any] = {}
         for cur_name in self.sep_head_dict:
             ret_dict[cur_name] = self.__getattr__(cur_name)(x)
 
-        return ret_dict
+        return cast(SeparateHeadPredDict, ret_dict)
 
 
 class CenterHead(nn.Module):

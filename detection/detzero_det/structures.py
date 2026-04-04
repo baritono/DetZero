@@ -217,6 +217,18 @@ class DataDict(DataDictBase, total=False):
         Inverse-transform matrices for each augmentation that was applied; used
         during evaluation to map predictions back to the original frame.  Only
         present when at least one augmentation requested noise-return.
+    calib : Any
+        Sensor-calibration object (dataset-specific).  Populated by some
+        dataset loaders and removed by :meth:`DataAugmentor.forward` before
+        the sample reaches the model.
+    road_plane : Any
+        Ground-plane parameters used by certain augmentation operations.
+        Populated by some dataset loaders and removed by
+        :meth:`DataAugmentor.forward` before the sample reaches the model.
+    tta_original : DataDict
+        The unaugmented version of this sample, stored alongside the TTA
+        variants when test-time augmentation is active.  Keyed ``"tta_original"``
+        inside the per-sample dict produced by :class:`TestTimeAugmentor`.
     """
 
     frame_id: Union[str, int]
@@ -230,6 +242,9 @@ class DataDict(DataDictBase, total=False):
     voxel_coords: np.ndarray
     voxel_num_points: np.ndarray
     aug_matrix_inv: AugMatrixInv
+    calib: Any
+    road_plane: Any
+    tta_original: Any  # DataDict (recursive reference)
 
 
 # ---------------------------------------------------------------------------

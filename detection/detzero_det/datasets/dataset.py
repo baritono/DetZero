@@ -2,7 +2,7 @@ import copy
 import pickle
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
@@ -244,8 +244,8 @@ class DatasetTemplate(torch.utils.data.Dataset):
                 data_dict={**data_dict}
             )
             for key, val in data_dict.items():
-                data_dict[key] = self.data_processor.forward(data_dict=val)
-                data_dict[key].pop('gt_names', None)
+                data_dict[key] = self.data_processor.forward(data_dict=val)  # type: ignore[literal-required, arg-type]
+                data_dict[key].pop('gt_names', None)                          # type: ignore[literal-required]
         else:
             data_dict = self.data_processor.forward(
                 data_dict=data_dict
@@ -268,12 +268,12 @@ class DatasetTemplate(torch.utils.data.Dataset):
             if tta:
                 tta_ops = cur_sample.keys()
                 data_dict['tta_ops'] = [tta_cfg for tta_cfg in tta_ops]
-                for key in cur_sample["tta_original"]:
+                for key in cur_sample["tta_original"]:  # type: ignore[literal-required]
                     if key in ['points', 'voxels', 'voxel_num_points', 'voxel_coords']:
                         for tta_cfg in tta_ops:
-                            data_dict[key].append(cur_sample[tta_cfg][key])
+                            data_dict[key].append(cur_sample[tta_cfg][key])  # type: ignore[literal-required]
                     else:
-                        data_dict[key].append(cur_sample["tta_original"][key])
+                        data_dict[key].append(cur_sample["tta_original"][key])  # type: ignore[literal-required]
             else:
                 for key, val in cur_sample.items():
                     data_dict[key].append(val)
@@ -302,7 +302,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
                 raise TypeError
         ret['batch_size'] = batch_size if not tta else int(batch_size * len(tta_ops))
 
-        return ret
+        return cast(BatchDict, ret)
 
     @staticmethod
     def generate_prediction_dicts(

@@ -225,10 +225,11 @@ class DataDict(DataDictBase, total=False):
         Ground-plane parameters used by certain augmentation operations.
         Populated by some dataset loaders and removed by
         :meth:`DataAugmentor.forward` before the sample reaches the model.
-    tta_original : DataDict
+    tta_original : Any
         The unaugmented version of this sample, stored alongside the TTA
         variants when test-time augmentation is active.  Keyed ``"tta_original"``
         inside the per-sample dict produced by :class:`TestTimeAugmentor`.
+        Typed as ``Any`` to avoid a self-referential TypedDict definition.
     """
 
     frame_id: Union[str, int]
@@ -244,7 +245,7 @@ class DataDict(DataDictBase, total=False):
     aug_matrix_inv: AugMatrixInv
     calib: Any
     road_plane: Any
-    tta_original: Any  # DataDict (recursive reference)
+    tta_original: Any
 
 
 # ---------------------------------------------------------------------------

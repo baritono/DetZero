@@ -1,10 +1,9 @@
 import copy
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import cast
 from torch.nn.init import kaiming_normal_
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils

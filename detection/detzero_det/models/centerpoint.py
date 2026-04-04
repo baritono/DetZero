@@ -308,12 +308,12 @@ class CenterPoint(nn.Module):
         if not self.training and self.tta:
             final_boxes, final_scores, final_labels = self.test_time_augment(batch_dict, pred_dicts)
             pred_dicts = []
-            record_dict = {  # type: ignore[assignment]
+            tta_record_dict: PredictionDict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }
-            pred_dicts.append(record_dict)
+            pred_dicts.append(tta_record_dict)
         return pred_dicts, recall_dict
 
     @staticmethod

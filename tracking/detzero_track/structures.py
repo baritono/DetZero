@@ -26,7 +26,7 @@ Naming conventions
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union
 
 import numpy as np
 from typing_extensions import TypedDict
@@ -325,14 +325,14 @@ class LabeledTrackEntry(TypedDict, total=False):
     track : TrackletData
         The predicted tracklet (with ``iou`` scores added, ``iou_idx``
         removed).
-    gt : TrackletData
+    gt : GroundTruthTrackletData
         The matched ground-truth object's history, with fields from
         ``gt_keys`` (e.g. ``gt_boxes_global``, ``gt_boxes_lidar``,
         ``name``, ``obj_ids``).
     """
 
     track: TrackletData
-    gt: TrackletData
+    gt: GroundTruthTrackletData
 
 
 class UnlabeledTrackEntry(TypedDict, total=False):
@@ -391,20 +391,23 @@ class EvalSequenceInput(TypedDict):
 class GroundTruthTrackletData(TypedDict, total=False):
     """GT object data indexed by GT object ID, produced by :func:`get_gt_id_data`.
 
-    Fields are accumulated as lists during construction and then converted
-    to numpy arrays in-place.  All fields are optional because the exact
-    set depends on the ``gt_keys`` argument passed to :func:`get_gt_id_data`.
+    All fields are stored as lists while the data is being accumulated and then
+    converted to numpy arrays in-place (``np.array(gt_id_data[gt_id][key])``).
+    The type annotations reflect the post-conversion (array) state, which is
+    the state seen by all downstream consumers.  All fields are optional
+    because the exact set present depends on the ``gt_keys`` argument passed
+    to :func:`get_gt_id_data`.
 
     Fields
     ------
-    sample_idx : np.ndarray or list, shape (T,), dtype str
+    sample_idx : np.ndarray, shape (T,), dtype str
         Frame IDs of every appearance of this GT object.
-    iou_idx : np.ndarray or list, shape (T,), dtype int
+    iou_idx : np.ndarray, shape (T,), dtype int
         Row indices into the per-frame IoU matrix built by
         :func:`get_iou_mat_dict`.  Temporary field; popped after use.
-    name : np.ndarray or list, shape (T,), dtype str
-        Class name for each appearance.
-    obj_ids : np.ndarray or list, shape (T,)
+    name : np.ndarray, shape (T,), dtype str
+        Class name for each appearance (e.g. ``'Vehicle'``).
+    obj_ids : np.ndarray, shape (T,)
         Per-appearance GT object identifiers (all equal for one GT track).
     gt_boxes_global : np.ndarray, shape (T, 7+), dtype float32
         GT bounding boxes in the world (global) coordinate frame.
@@ -417,14 +420,14 @@ class GroundTruthTrackletData(TypedDict, total=False):
         Number of LiDAR points inside the GT box at each appearance.
     """
 
-    sample_idx: Any
-    iou_idx: Any
-    name: Any
-    obj_ids: Any
-    gt_boxes_global: Any
-    gt_boxes_lidar: Any
-    difficulty: Any
-    num_points_in_gt: Any
+    sample_idx: np.ndarray
+    iou_idx: np.ndarray
+    name: np.ndarray
+    obj_ids: np.ndarray
+    gt_boxes_global: np.ndarray
+    gt_boxes_lidar: np.ndarray
+    difficulty: np.ndarray
+    num_points_in_gt: np.ndarray
 
 
 # ---------------------------------------------------------------------------
@@ -463,13 +466,35 @@ class TrackManagerModules(TypedDict, total=False):
         includes ``enable`` (bool).
     """
 
-    filter_module: Any
+    filter_module: Callable[..., Any]
+    """Partially-applied Kalman-filter constructor (``functools.partial``);
+    called with ``bbox``, ``name``, ``score``, ``frame_id``, ``track_id``,
+    ``num_points`` to create a new track object."""
+
     filter_config: Any
+    """Lower-cased configuration snapshot for the filter
+    (``name``, ``x_dim``, ``z_dim``, ``delta_t`` …).  An
+    :class:`easydict.EasyDict` at runtime."""
+
     track_age_config: Any
+    """Lower-cased configuration for birth/death thresholds
+    (``birth_age``, ``death_age``).  An :class:`easydict.EasyDict`."""
+
     data_association_module: Any
+    """Instantiated :class:`associate_det_to_tracks` object."""
+
     data_association_config: Any
+    """Lower-cased configuration snapshot for data association.
+    An :class:`easydict.EasyDict`."""
+
     track_merge_config: Any
+    """Lower-cased configuration for track merging; includes
+    ``enable`` (bool) and ``class_threshold`` (dict mapping class
+    name to overlap threshold).  An :class:`easydict.EasyDict`."""
+
     reverse_tracking_config: Any
+    """Lower-cased configuration for the reverse-tracking pass;
+    includes ``enable`` (bool).  An :class:`easydict.EasyDict`."""
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Dict, List, Tuple
 
 from detzero_track.utils.data_utils import frame_list_to_dict, tracklets_to_frames
 from detzero_track.utils.track_calculation import get_iou_mat_dict, get_gt_id_data
@@ -138,17 +138,17 @@ def assign_track_target(
             tk_data[tk_id]['state'] = 'static'
 
         tk_data[tk_id].pop('iou_idx')
-        label_data[tk_id] = cast(LabeledTrackEntry, {
-            'track': tk_data[tk_id],
-            'gt': gt_data[gt_id]
-        })
+        label_data[tk_id] = LabeledTrackEntry(
+            track=tk_data[tk_id],
+            gt=gt_data[gt_id],
+        )
 
     # Add unlabeled data to dictionary
     for unmatch_tk_idx in unmatch_track:
         tk_id = tk_ids[unmatch_tk_idx]
         tk_data[tk_id].pop('iou_idx')
 
-        unlabel_data[tk_id] = cast(UnlabeledTrackEntry, {
-            'track': tk_data[tk_id]
-        })
-    return cast(AssignTargetResult, {'label': label_data, 'unlabel': unlabel_data})
+        unlabel_data[tk_id] = UnlabeledTrackEntry(
+            track=tk_data[tk_id],
+        )
+    return AssignTargetResult(label=label_data, unlabel=unlabel_data)

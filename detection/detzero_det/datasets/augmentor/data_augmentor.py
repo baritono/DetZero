@@ -1,10 +1,12 @@
 from functools import partial
+from typing import Optional
 
 import numpy as np
 
 from detzero_utils import common_utils
 
 from . import augmentor_utils, database_sampler
+from ...structures import AugMatrixInv, DataDict
 
 
 class DataAugmentor(object):
@@ -41,9 +43,9 @@ class DataAugmentor(object):
     def __setstate__(self, d):
         self.__dict__.update(d)
     
-    def random_world_flip(self, data_dict=None, config=None):
+    def random_world_flip(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_flip, config=config)
+            return partial(self.random_world_flip, config=config)  # type: ignore[return-value]
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         
         return_noise_flag = False
@@ -78,9 +80,9 @@ class DataAugmentor(object):
 
         return data_dict
 
-    def random_world_rotation(self, data_dict=None, config=None):
+    def random_world_rotation(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_rotation, config=config)
+            return partial(self.random_world_rotation, config=config)  # type: ignore[return-value]
         rot_range = config['WORLD_ROT_ANGLE']
         if not isinstance(rot_range, list):
             rot_range = [-rot_range, rot_range]
@@ -114,9 +116,9 @@ class DataAugmentor(object):
 
         return data_dict
 
-    def random_world_scaling(self, data_dict=None, config=None):
+    def random_world_scaling(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_scaling, config=config)
+            return partial(self.random_world_scaling, config=config)  # type: ignore[return-value]
 
         return_noise_flag = False
         if config.get('RETURN_NOISE_SCALE', None) is not None:
@@ -145,9 +147,9 @@ class DataAugmentor(object):
 
         return data_dict
 
-    def random_world_translation(self, data_dict=None, config=None):
+    def random_world_translation(self, data_dict: Optional[DataDict] = None, config=None) -> DataDict:
         if data_dict is None:
-            return partial(self.random_world_translation, config=config)
+            return partial(self.random_world_translation, config=config)  # type: ignore[return-value]
 
         return_noise_flag = False
         if config.get('RETURN_NOISE_TRANSLATION', None) is not None:
@@ -174,16 +176,18 @@ class DataAugmentor(object):
 
         return data_dict
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: DataDict) -> DataDict:
         """
         Args:
-            data_dict:
+            data_dict (DataDict):
                 points: (N, 3 + C_in)
                 gt_boxes: optional, (N, 7) [x, y, z, dx, dy, dz, heading]
                 gt_names: optional, (N), string
                 ...
 
         Returns:
+            data_dict (DataDict) with augmented points and boxes, plus
+            ``aug_matrix_inv`` if any augmentation requested noise return.
         """
         data_dict['aug_matrix_inv'] = {}
         for cur_augmentor in self.data_augmentor_queue:

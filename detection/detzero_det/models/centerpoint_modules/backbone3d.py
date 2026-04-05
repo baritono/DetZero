@@ -3,6 +3,8 @@ from functools import partial
 import spconv.pytorch as spconv
 import torch.nn as nn
 
+from ...structures import BatchDict, MultiScale3DFeatures, MultiScale3DStrides
+
 norm_cfg = {
     "BN": ("bn", nn.BatchNorm2d),
     "BN1d": ("bn1d", nn.BatchNorm1d),
@@ -174,16 +176,17 @@ class VoxelBackBone8x(nn.Module):
         )
         self.num_point_features = channels[3]
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict) -> BatchDict:
         """
         Args:
-            batch_dict:
+            batch_dict (BatchDict):
                 batch_size: int
-                vfe_features: (num_voxels, C)
+                voxel_features: (num_voxels, C)
                 voxel_coords: (num_voxels, 4), [batch_idx, z_idx, y_idx, x_idx]
         Returns:
-            batch_dict:
-                encoded_spconv_tensor: sparse tensor
+            batch_dict (BatchDict) with ``encoded_spconv_tensor``,
+            ``encoded_spconv_tensor_stride``, ``multi_scale_3d_features``,
+            and ``multi_scale_3d_strides`` added.
         """
         voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
         batch_size = batch_dict['batch_size']
@@ -207,22 +210,20 @@ class VoxelBackBone8x(nn.Module):
             'encoded_spconv_tensor': out,
             'encoded_spconv_tensor_stride': 8
         })
-        batch_dict.update({
-            'multi_scale_3d_features': {
-                'x_conv1': x_conv1,
-                'x_conv2': x_conv2,
-                'x_conv3': x_conv3,
-                'x_conv4': x_conv4,
-            }
-        })
-        batch_dict.update({
-            'multi_scale_3d_strides': {
-                'x_conv1': 1,
-                'x_conv2': 2,
-                'x_conv3': 4,
-                'x_conv4': 8,
-            }
-        })
+        ms_features: MultiScale3DFeatures = {
+            'x_conv1': x_conv1,
+            'x_conv2': x_conv2,
+            'x_conv3': x_conv3,
+            'x_conv4': x_conv4,
+        }
+        batch_dict.update({'multi_scale_3d_features': ms_features})
+        ms_strides: MultiScale3DStrides = {
+            'x_conv1': 1,
+            'x_conv2': 2,
+            'x_conv3': 4,
+            'x_conv4': 8,
+        }
+        batch_dict.update({'multi_scale_3d_strides': ms_strides})
 
         return batch_dict
 
@@ -286,16 +287,17 @@ class VoxelResBackBone8x(nn.Module):
             'x_conv4': channels[3]
         }
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict) -> BatchDict:
         """
         Args:
-            batch_dict:
+            batch_dict (BatchDict):
                 batch_size: int
-                vfe_features: (num_voxels, C)
+                voxel_features: (num_voxels, C)
                 voxel_coords: (num_voxels, 4), [batch_idx, z_idx, y_idx, x_idx]
         Returns:
-            batch_dict:
-                encoded_spconv_tensor: sparse tensor
+            batch_dict (BatchDict) with ``encoded_spconv_tensor``,
+            ``encoded_spconv_tensor_stride``, ``multi_scale_3d_features``,
+            and ``multi_scale_3d_strides`` added.
         """
         voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
         batch_size = batch_dict['batch_size']
@@ -318,21 +320,19 @@ class VoxelResBackBone8x(nn.Module):
             'encoded_spconv_tensor': out,
             'encoded_spconv_tensor_stride': 8
         })
-        batch_dict.update({
-            'multi_scale_3d_features': {
-                'x_conv1': x_conv1,
-                'x_conv2': x_conv2,
-                'x_conv3': x_conv3,
-                'x_conv4': x_conv4,
-            }
-        })
-        batch_dict.update({
-            'multi_scale_3d_strides': {
-                'x_conv1': 1,
-                'x_conv2': 2,
-                'x_conv3': 4,
-                'x_conv4': 8,
-            }
-        })
+        ms_features: MultiScale3DFeatures = {
+            'x_conv1': x_conv1,
+            'x_conv2': x_conv2,
+            'x_conv3': x_conv3,
+            'x_conv4': x_conv4,
+        }
+        batch_dict.update({'multi_scale_3d_features': ms_features})
+        ms_strides: MultiScale3DStrides = {
+            'x_conv1': 1,
+            'x_conv2': 2,
+            'x_conv3': 4,
+            'x_conv4': 8,
+        }
+        batch_dict.update({'multi_scale_3d_strides': ms_strides})
         
         return batch_dict

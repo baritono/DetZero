@@ -1,4 +1,5 @@
 import os
+from typing import Dict, List, Optional, Tuple, cast
 
 import torch
 import torch.nn as nn
@@ -10,6 +11,13 @@ from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 from detzero_det.utils import model_nms_utils
 from detzero_det.utils.ensemble_utils.ensemble import wbf_online
 from detzero_det.models import centerpoint_modules as cp_modules
+from detzero_det.structures import (
+    AnnotationDict,
+    BatchDict,
+    ModelInfoDict,
+    PredictionDict,
+    RecallDict,
+)
 
 
 class CenterPoint(nn.Module):
@@ -24,7 +32,7 @@ class CenterPoint(nn.Module):
         self.second_stage = model_cfg.SECOND_STAGE
         self.module_list = self.build_networks()
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict):
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
 
@@ -56,8 +64,8 @@ class CenterPoint(nn.Module):
     def update_global_step(self):
         self.global_step += 1
 
-    def build_networks(self):
-        model_info_dict = {
+    def build_networks(self) -> List[nn.Module]:
+        model_info_dict: ModelInfoDict = {
             'module_list': [],
             'num_point_features': self.dataset.point_feature_encoder.num_point_features,
             'grid_size': self.dataset.grid_size,
@@ -207,12 +215,14 @@ class CenterPoint(nn.Module):
         boxes, scores, labels = wbf_online(boxes, scores, labels)
         return boxes, scores, labels
 
-    def post_processing(self, batch_dict):
+    def post_processing(
+        self, batch_dict: BatchDict
+    ) -> Tuple[List[PredictionDict], RecallDict]:
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
         
         if self.second_stage:
-            recall_dict = {}
+            recall_dict: RecallDict = cast(RecallDict, {})
             pred_dicts = []
             for index in range(batch_size):
                 box_preds = batch_dict['batch_box_preds'][index]
@@ -252,7 +262,7 @@ class CenterPoint(nn.Module):
 
                     if batch_dict.get('has_class_labels', False):
                         label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
-                        label_preds = batch_dict[label_key][index]
+                        label_preds = batch_dict[label_key][index]  # type: ignore[literal-required]
                     else:
                         label_preds = label_preds
                     scores = torch.sqrt(torch.sigmoid(cls_preds).reshape(-1) * batch_dict['roi_scores'][index].reshape(-1))
@@ -274,15 +284,15 @@ class CenterPoint(nn.Module):
                     thresh_list=post_process_cfg.RECALL_THRESH_LIST
                 )
 
-                record_dict = {
-                    'pred_boxes': final_boxes,
-                    'pred_scores': final_scores,
-                    'pred_labels': final_labels
-                }
-                pred_dicts.append(record_dict)
+            record_dict: PredictionDict = {
+                'pred_boxes': final_boxes,
+                'pred_scores': final_scores,
+                'pred_labels': final_labels,
+            }
+            pred_dicts.append(record_dict)
         else:
             pred_dicts = batch_dict['final_box_dicts']
-            recall_dict = {}
+            recall_dict = cast(RecallDict, {})
             for index in range(batch_size):
                 pred_boxes = pred_dicts[index]['pred_boxes']
 
@@ -298,16 +308,22 @@ class CenterPoint(nn.Module):
         if not self.training and self.tta:
             final_boxes, final_scores, final_labels = self.test_time_augment(batch_dict, pred_dicts)
             pred_dicts = []
-            record_dict = {
+            tta_record_dict: PredictionDict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }
-            pred_dicts.append(record_dict)
+            pred_dicts.append(tta_record_dict)
         return pred_dicts, recall_dict
 
     @staticmethod
-    def generate_recall_record(box_preds, recall_dict, batch_index, data_dict=None, thresh_list=None):
+    def generate_recall_record(
+        box_preds: torch.Tensor,
+        recall_dict: RecallDict,
+        batch_index: int,
+        data_dict: Optional[BatchDict] = None,
+        thresh_list: Optional[List[float]] = None,
+    ) -> RecallDict:
         if 'gt_boxes' not in data_dict:
             return recall_dict
 
@@ -316,10 +332,10 @@ class CenterPoint(nn.Module):
         gt_boxes = data_dict['gt_boxes'][batch_index]
 
         if recall_dict.__len__() == 0:
-            recall_dict = {'gt': 0}
+            recall_dict = cast(RecallDict, {'gt': 0})
             for cur_thresh in thresh_list:
-                recall_dict['roi_%s' % (str(cur_thresh))] = 0
-                recall_dict['rcnn_%s' % (str(cur_thresh))] = 0
+                recall_dict['roi_%s' % (str(cur_thresh))] = 0    # type: ignore[literal-required]
+                recall_dict['rcnn_%s' % (str(cur_thresh))] = 0   # type: ignore[literal-required]
 
         cur_gt = gt_boxes
         k = cur_gt.__len__() - 1
@@ -338,13 +354,13 @@ class CenterPoint(nn.Module):
 
             for cur_thresh in thresh_list:
                 if iou3d_rcnn.shape[0] == 0:
-                    recall_dict['rcnn_%s' % str(cur_thresh)] += 0
+                    recall_dict['rcnn_%s' % str(cur_thresh)] += 0    # type: ignore[literal-required]
                 else:
                     rcnn_recalled = (iou3d_rcnn.max(dim=0)[0] > cur_thresh).sum().item()
-                    recall_dict['rcnn_%s' % str(cur_thresh)] += rcnn_recalled
+                    recall_dict['rcnn_%s' % str(cur_thresh)] += rcnn_recalled  # type: ignore[literal-required]
                 if rois is not None:
                     roi_recalled = (iou3d_roi.max(dim=0)[0] > cur_thresh).sum().item()
-                    recall_dict['roi_%s' % str(cur_thresh)] += roi_recalled
+                    recall_dict['roi_%s' % str(cur_thresh)] += roi_recalled    # type: ignore[literal-required]
 
             recall_dict['gt'] += cur_gt.shape[0]
         else:

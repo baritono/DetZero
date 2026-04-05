@@ -1,4 +1,5 @@
 import math
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -12,6 +13,13 @@ from detzero_det.utils import loss_utils, box_coder_utils, voxel_aggregation_uti
 from detzero_det.utils.model_nms_utils import class_agnostic_nms
 from detzero_det.utils.attention_utils import TransformerEncoder, get_positional_encoder
 from .proposal_target_layer import ProposalTargetLayer
+from ...structures import (
+    BatchDict,
+    PointCoordsDict,
+    PointFeaturesDict,
+    ProposalTargetDict,
+    RoIHeadForwardDict,
+)
 
 
 class RoIHeadTemplate(nn.Module):
@@ -49,21 +57,19 @@ class RoIHeadTemplate(nn.Module):
         return fc_layers
 
     @torch.no_grad()
-    def proposal_layer(self, batch_dict, nms_config):
+    def proposal_layer(self, batch_dict: BatchDict, nms_config) -> BatchDict:
         """
         Args:
-            batch_dict:
-                batch_size:
-                batch_cls_preds: (B, num_boxes, num_classes | 1) or (N1+N2+..., num_classes | 1)
-                batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)
-                cls_preds_normalized: indicate whether batch_cls_preds is normalized
-                batch_index: optional (N1+N2+...)
-            nms_config:
+            batch_dict (BatchDict):
+                batch_size: int
+                batch_cls_preds: (B, num_boxes, num_classes|1) or (sum_N, num_classes|1)
+                batch_box_preds: (B, num_boxes, 7+C) or (sum_N, 7+C)
+                cls_preds_normalized: bool – whether batch_cls_preds is normalized
+                batch_index: optional (sum_N,) – flat batch index when preds are not padded
+            nms_config: NMS configuration object
         Returns:
-            batch_dict:
-                rois: (B, num_rois, 7+C)
-                roi_scores: (B, num_rois)
-                roi_labels: (B, num_rois)
+            batch_dict (BatchDict) with ``rois``, ``roi_scores``, ``roi_labels``,
+            and ``has_class_labels`` added; ``batch_index`` removed.
         """
         if batch_dict.get('rois', None) is not None:
             return batch_dict
@@ -105,7 +111,7 @@ class RoIHeadTemplate(nn.Module):
         batch_dict.pop('batch_index', None)
         return batch_dict
 
-    def assign_targets(self, batch_dict):
+    def assign_targets(self, batch_dict: BatchDict) -> RoIHeadForwardDict:
         batch_size = batch_dict['batch_size']
         with torch.no_grad():
             targets_dict = self.proposal_target_layer.forward(batch_dict)
@@ -137,7 +143,7 @@ class RoIHeadTemplate(nn.Module):
         targets_dict['gt_of_rois'] = gt_of_rois
         return targets_dict
 
-    def get_box_reg_layer_loss(self, forward_ret_dict):
+    def get_box_reg_layer_loss(self, forward_ret_dict: RoIHeadForwardDict):
         loss_cfgs = self.model_cfg.LOSS_CONFIG
         code_size = self.box_coder.code_size
         reg_valid_mask = forward_ret_dict['reg_valid_mask'].view(-1)
@@ -201,7 +207,7 @@ class RoIHeadTemplate(nn.Module):
 
         return rcnn_loss_reg, tb_dict
 
-    def get_box_cls_layer_loss(self, forward_ret_dict):
+    def get_box_cls_layer_loss(self, forward_ret_dict: RoIHeadForwardDict):
         loss_cfgs = self.model_cfg.LOSS_CONFIG
         rcnn_cls = forward_ret_dict['rcnn_cls']
         rcnn_cls_labels = forward_ret_dict['rcnn_cls_labels'].view(-1)
@@ -364,14 +370,14 @@ class VoxelAggregationHead(RoIHeadTemplate):
                     nn.init.constant_(m.bias, 0)
         nn.init.normal_(self.reg_layers[-1].weight, mean=0, std=0.001)
 
-    def roi_grid_pool(self, batch_dict):
+    def roi_grid_pool(self, batch_dict: BatchDict):
         """
         Args:
-            batch_dict:
-                batch_size:
+            batch_dict (BatchDict):
+                batch_size: int
                 rois: (B, num_rois, 7 + C)
-                point_coords: (num_points, 4)  [bs_idx, x, y, z]
-                point_features: (num_points, C)
+                point_coords: PointCoordsDict – per-location ``[batch_idx, x, y, z]``
+                point_features: PointFeaturesDict – per-location feature tensors
                 point_cls_scores: (N1 + N2 + N3 + ..., 1)
                 point_part_offset: (N1 + N2 + N3 + ..., 3)
         Returns:
@@ -390,8 +396,8 @@ class VoxelAggregationHead(RoIHeadTemplate):
         pooled_features_list = []
         ball_idxs_list = []
         for k, src_name in enumerate(self.pool_cfg.FEATURE_LOCATIONS):
-            point_coords = batch_dict['point_coords'][src_name]
-            point_features = batch_dict['point_features'][src_name]
+            point_coords = batch_dict['point_coords'][src_name]      # type: ignore[literal-required]
+            point_features = batch_dict['point_features'][src_name]   # type: ignore[literal-required]
             pool_layer = self.roi_grid_pool_layers[k]
 
             xyz = point_coords[:, 1:4]
@@ -459,7 +465,9 @@ class VoxelAggregationHead(RoIHeadTemplate):
                           - (local_roi_size.unsqueeze(dim=1) / 2)  # (B, 6x6x6, 3)
         return roi_grid_points
 
-    def get_point_voxel_features(self, batch_dict):
+    def get_point_voxel_features(
+        self, batch_dict: BatchDict
+    ) -> Tuple[PointFeaturesDict, PointCoordsDict]:
         raise NotImplementedError
 
     def get_positional_input(self, points, rois, local_roi_grid_points):
@@ -482,10 +490,12 @@ class VoxelAggregationHead(RoIHeadTemplate):
             positional_input = None
         return positional_input
 
-    def forward(self, batch_dict):
+    def forward(self, batch_dict: BatchDict) -> BatchDict:
         """
-        :param input_data: input dict
-        :return:
+        Args:
+            batch_dict (BatchDict): input batch dictionary.
+        Returns:
+            batch_dict (BatchDict) with ROI head predictions or training state added.
         """
         batch_dict['point_features'], batch_dict['point_coords'] = self.get_point_voxel_features(batch_dict)
 
@@ -568,15 +578,17 @@ class VoxelCenterHead(VoxelAggregationHead):
     def __init__(self, input_channels, model_cfg, point_cloud_range, voxel_size, num_class=1, **kwargs):
         super().__init__(input_channels, model_cfg, point_cloud_range, voxel_size, num_class, kwargs=kwargs)
 
-    def get_point_voxel_features(self, batch_dict):
-        point_features = {}
-        point_coords = {}
+    def get_point_voxel_features(
+        self, batch_dict: BatchDict
+    ) -> Tuple[PointFeaturesDict, PointCoordsDict]:
+        point_features: PointFeaturesDict = {}
+        point_coords: PointCoordsDict = {}
         for feature_location in self.model_cfg.VOXEL_AGGREGATION.FEATURE_LOCATIONS:
             # Voxel aggregation based on voxel centers
-            cur_coords = batch_dict['multi_scale_3d_features'][feature_location].indices
+            cur_coords = batch_dict['multi_scale_3d_features'][feature_location].indices       # type: ignore[literal-required]
             xyz = common_utils.get_voxel_centers(
                 cur_coords[:, 1:4],
-                downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],
+                downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],      # type: ignore[literal-required]
                 voxel_size=self.voxel_size,
                 point_cloud_range=self.point_cloud_range
             )
@@ -584,8 +596,8 @@ class VoxelCenterHead(VoxelAggregationHead):
             cur_coords[:, 1:4] = xyz
 
             # Input features for grid pooling module
-            point_features[feature_location] = batch_dict['multi_scale_3d_features'][feature_location].features
-            point_coords[feature_location] = cur_coords
+            point_features[feature_location] = batch_dict['multi_scale_3d_features'][feature_location].features  # type: ignore[literal-required]
+            point_coords[feature_location] = cur_coords  # type: ignore[literal-required]
         return point_features, point_coords
 
 
@@ -593,9 +605,11 @@ class PDVHead(VoxelAggregationHead):
     def __init__(self, input_channels, model_cfg, point_cloud_range, voxel_size, num_class=1, **kwargs):
         super().__init__(input_channels, model_cfg, point_cloud_range, voxel_size, num_class, kwargs=kwargs)
 
-    def get_point_voxel_features(self, batch_dict):
-        point_features = {}
-        point_coords = {}
+    def get_point_voxel_features(
+        self, batch_dict: BatchDict
+    ) -> Tuple[PointFeaturesDict, PointCoordsDict]:
+        point_features: PointFeaturesDict = {}
+        point_coords: PointCoordsDict = {}
         centroids_all, centroid_voxel_idxs_all = voxel_aggregation_utils.get_centroids_per_voxel_layer(batch_dict['points'],
                                                                                                        self.model_cfg.VOXEL_AGGREGATION.FEATURE_LOCATIONS,
                                                                                                        batch_dict['multi_scale_3d_strides'],
@@ -604,7 +618,7 @@ class PDVHead(VoxelAggregationHead):
         for feature_location in self.model_cfg.VOXEL_AGGREGATION.FEATURE_LOCATIONS:
             centroids = centroids_all[feature_location][:, :4]
             centroid_voxel_idxs = centroid_voxel_idxs_all[feature_location]
-            x_conv = batch_dict['multi_scale_3d_features'][feature_location]
+            x_conv = batch_dict['multi_scale_3d_features'][feature_location]  # type: ignore[literal-required]
             overlapping_voxel_feature_indices_nonempty, overlapping_voxel_feature_nonempty_mask = \
                 voxel_aggregation_utils.get_nonempty_voxel_feature_indices(centroid_voxel_idxs, x_conv)
 
@@ -618,7 +632,7 @@ class PDVHead(VoxelAggregationHead):
                 cur_coords = x_conv.indices[empty_mask]
                 xyz = common_utils.get_voxel_centers(
                     cur_coords[:, 1:4],
-                    downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],
+                    downsample_times=batch_dict['multi_scale_3d_strides'][feature_location],  # type: ignore[literal-required]
                     voxel_size=self.voxel_size,
                     point_cloud_range=self.point_cloud_range
                 )
@@ -626,12 +640,12 @@ class PDVHead(VoxelAggregationHead):
                 cur_coords[:, 1:4] = xyz
                 voxel_points[empty_mask] = cur_coords
 
-                point_features[feature_location] = x_conv.features
-                point_coords[feature_location] = voxel_points
+                point_features[feature_location] = x_conv.features      # type: ignore[literal-required]
+                point_coords[feature_location] = voxel_points            # type: ignore[literal-required]
             else:
                 x_conv_features = torch.zeros((centroids.shape[0], x_conv.features.shape[-1]), dtype=x_conv.features.dtype, device=centroids.device)
                 x_conv_features[overlapping_voxel_feature_nonempty_mask] = x_conv.features[overlapping_voxel_feature_indices_nonempty]
 
-                point_features[feature_location] = x_conv_features[overlapping_voxel_feature_nonempty_mask]
-                point_coords[feature_location] = centroids[overlapping_voxel_feature_nonempty_mask]
+                point_features[feature_location] = x_conv_features[overlapping_voxel_feature_nonempty_mask]  # type: ignore[literal-required]
+                point_coords[feature_location] = centroids[overlapping_voxel_feature_nonempty_mask]           # type: ignore[literal-required]
         return point_features, point_coords

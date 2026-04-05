@@ -10,6 +10,8 @@ except Exception as e:
     # Incase someone doesn't want to use dynamic pillar vfe and hasn't installed torch_scatter
     pass
 
+from ...structures import BatchDict
+
 
 class VFELayer(nn.Module):
     def __init__(self,
@@ -63,16 +65,16 @@ class MeanVFE(nn.Module):
     def get_output_feature_dim(self):
         return self.num_point_features
 
-    def forward(self, batch_dict, **kwargs):
+    def forward(self, batch_dict: BatchDict, **kwargs) -> BatchDict:
         """
         Args:
-            batch_dict:
+            batch_dict (BatchDict):
                 voxels: (num_voxels, max_points_per_voxel, C)
-                voxel_num_points: optional (num_voxels)
+                voxel_num_points: (num_voxels,)
             **kwargs:
 
         Returns:
-            vfe_features: (num_voxels, C)
+            batch_dict (BatchDict) with ``voxel_features`` (num_voxels, C) added.
         """
         voxel_features, voxel_num_points = batch_dict['voxels'], batch_dict['voxel_num_points']
         points_mean = voxel_features[:, :, :].sum(dim=1, keepdim=False)
@@ -107,15 +109,16 @@ class DynamicMeanVFE(nn.Module):
         return self.num_point_features
 
     @torch.no_grad()
-    def forward(self, batch_dict, **kwargs):
+    def forward(self, batch_dict: BatchDict, **kwargs) -> BatchDict:
         """
         Args:
-            batch_dict:
-                voxels: (num_voxels, max_points_per_voxel, C)
-                voxel_num_points: optional (num_voxels)
+            batch_dict (BatchDict):
+                points: (sum_N, 4+C) with batch_idx prepended
+                batch_size: int
             **kwargs:
         Returns:
-            vfe_features: (num_voxels, C)
+            batch_dict (BatchDict) with ``voxel_features`` (num_voxels, C) and
+            ``voxel_coords`` (num_voxels, 4) added.
         """
         batch_size = batch_dict['batch_size']
         points = batch_dict['points'] # (batch_idx, x, y, z, i, e)

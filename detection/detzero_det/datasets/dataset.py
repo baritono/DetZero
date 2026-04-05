@@ -2,6 +2,7 @@ import copy
 import pickle
 from abc import abstractmethod
 from collections import defaultdict
+from typing import Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import torch
@@ -10,6 +11,7 @@ from detzero_utils import box_utils, common_utils
 
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
+from ..structures import AnnotationDict, BatchDict, DataDict, PredictionDict
 
 
 class DatasetTemplate(torch.utils.data.Dataset):
@@ -107,7 +109,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         target_infos, points = self.get_infos_and_points(target_idx_list)
         points = self.merge_sweeps(current_info, target_infos, points)
 
-        input_dict = {
+        input_dict: DataDict = {
             'points': points,
             'frame_id': current_info['sample_idx'],
             'pose': current_info['pose'],
@@ -194,17 +196,17 @@ class DatasetTemplate(torch.utils.data.Dataset):
 
         return point_clouds
 
-    def prepare_data(self, data_dict):
+    def prepare_data(self, data_dict: DataDict) -> DataDict:
         """
         Args:
-            data_dict:
+            data_dict (DataDict):
                 points: (N, 3 + C_in)
                 gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
                 gt_names: optional, (N), string
                 ...
 
         Returns:
-            data_dict:
+            data_dict (DataDict):
                 frame_id: string
                 points: (N, 3 + C_in)
                 gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
@@ -242,8 +244,8 @@ class DatasetTemplate(torch.utils.data.Dataset):
                 data_dict={**data_dict}
             )
             for key, val in data_dict.items():
-                data_dict[key] = self.data_processor.forward(data_dict=val)
-                data_dict[key].pop('gt_names', None)
+                data_dict[key] = self.data_processor.forward(data_dict=val)  # type: ignore[literal-required, arg-type]
+                data_dict[key].pop('gt_names', None)                          # type: ignore[literal-required]
         else:
             data_dict = self.data_processor.forward(
                 data_dict=data_dict
@@ -257,7 +259,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         return data_dict
 
     @staticmethod
-    def collate_batch(batch_list, _unused=False):
+    def collate_batch(batch_list: List[DataDict], _unused: bool = False) -> BatchDict:
         data_dict = defaultdict(list)
         batch_size = len(batch_list)
         tta = 'tta_original' in batch_list[0]
@@ -266,12 +268,12 @@ class DatasetTemplate(torch.utils.data.Dataset):
             if tta:
                 tta_ops = cur_sample.keys()
                 data_dict['tta_ops'] = [tta_cfg for tta_cfg in tta_ops]
-                for key in cur_sample["tta_original"]:
+                for key in cur_sample["tta_original"]:  # type: ignore[literal-required]
                     if key in ['points', 'voxels', 'voxel_num_points', 'voxel_coords']:
                         for tta_cfg in tta_ops:
-                            data_dict[key].append(cur_sample[tta_cfg][key])
+                            data_dict[key].append(cur_sample[tta_cfg][key])  # type: ignore[literal-required]
                     else:
-                        data_dict[key].append(cur_sample["tta_original"][key])
+                        data_dict[key].append(cur_sample["tta_original"][key])  # type: ignore[literal-required]
             else:
                 for key, val in cur_sample.items():
                     data_dict[key].append(val)
@@ -300,37 +302,44 @@ class DatasetTemplate(torch.utils.data.Dataset):
                 raise TypeError
         ret['batch_size'] = batch_size if not tta else int(batch_size * len(tta_ops))
 
-        return ret
+        return cast(BatchDict, ret)
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def generate_prediction_dicts(
+        batch_dict: BatchDict,
+        pred_dicts: List[PredictionDict],
+        class_names: List[str],
+        output_path: Optional[str] = None,
+    ) -> List[AnnotationDict]:
         """
         This is the Waymo version. Further refactor for custom dataset later.
 
 
         Args:
-            batch_dict:
-                frame_id:
-            pred_dicts: list of pred_dicts
-                pred_boxes: (N, 7), Tensor
-                pred_scores: (N), Tensor
-                pred_labels: (N), Tensor
-            class_names:
-            output_path:
+            batch_dict (BatchDict):
+                frame_id: per-sample frame identifiers
+                sequence_name: per-sample sequence identifiers
+                pose: per-sample ego-to-world transforms
+            pred_dicts: list of PredictionDict, one per sample
+                pred_boxes: (N, 7+C), Tensor
+                pred_scores: (N,), Tensor
+                pred_labels: (N,), Tensor
+            class_names: list of class name strings
+            output_path: optional path to write result files
 
         Returns:
-            annos: list of detection results
+            annos: list of AnnotationDict, one per sample
         """
 
-        def get_template_prediction(num_samples):
-            ret_dict = {
+        def get_template_prediction(num_samples: int) -> AnnotationDict:
+            anno: AnnotationDict = {
                 'name': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
-                'boxes_lidar': np.zeros([num_samples, 9])
+                'boxes_lidar': np.zeros([num_samples, 9]),
             }
-            return ret_dict
+            return anno
 
-        def generate_single_sample_dict(box_dict):
+        def generate_single_sample_dict(box_dict: PredictionDict) -> AnnotationDict:
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
@@ -343,7 +352,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
 
             return pred_dict
 
-        annos = []
+        annos: List[AnnotationDict] = []
         for index, box_dict in enumerate(pred_dicts):
             single_pred_dict = generate_single_sample_dict(box_dict)
             single_pred_dict['sequence_name'] = batch_dict['sequence_name'][index]

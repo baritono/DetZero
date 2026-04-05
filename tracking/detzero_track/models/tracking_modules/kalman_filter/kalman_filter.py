@@ -1,14 +1,20 @@
 import copy
+from typing import Dict, List, Union
 
 import numpy as np
+
+from detzero_track.structures import TrackFrameState
 
 
 class BaseKalmanFilter:
     """
     Base Kalman Filter
     """
-    def __init__(self, bbox, name, score, frame_id, track_id, num_points=0,
-                 x_dim=5, z_dim=3, delta_t=0.1, p=[1, 1], q=[1, 1], r=1):
+    def __init__(self, bbox: np.ndarray, name: str, score: float,
+                 frame_id: Union[str, int], track_id: int,
+                 num_points: Union[int, float] = 0,
+                 x_dim: int = 5, z_dim: int = 3, delta_t: float = 0.1,
+                 p: list = [1, 1], q: list = [1, 1], r: float = 1) -> None:
 
         self.x_dim = x_dim
         self.z_dim = z_dim
@@ -58,8 +64,8 @@ class BaseKalmanFilter:
     def state(self):
         return self.x
 
-    def info(self):
-        data = {
+    def info(self) -> Dict[int, TrackFrameState]:
+        data: TrackFrameState = {
             'boxes_global': self.bbox,
             'name': self.name,
             'score': self.score,
@@ -76,13 +82,16 @@ class KalmanFilter(BaseKalmanFilter):
     """
     not update object center and size
     """
-    def __init__(self, bbox, name, score, frame_id, track_id, num_points=0,
-                 x_dim=5, z_dim=3, delta_t=0.1, p=[1, 1], q=[1, 1], r=1, **kwargs):
+    def __init__(self, bbox: np.ndarray, name: str, score: float,
+                 frame_id: Union[str, int], track_id: int,
+                 num_points: Union[int, float] = 0,
+                 x_dim: int = 5, z_dim: int = 3, delta_t: float = 0.1,
+                 p: list = [1, 1], q: list = [1, 1], r: float = 1, **kwargs) -> None:
         super().__init__(bbox, name, score, frame_id, track_id, num_points=num_points,
                  x_dim=x_dim, z_dim=z_dim, delta_t=delta_t, p=p, q=q, r=r)
 
 
-    def predict(self, frame_id):
+    def predict(self, frame_id: Union[str, int]) -> np.ndarray:
         """
         Preict one step
         """
@@ -107,7 +116,8 @@ class KalmanFilter(BaseKalmanFilter):
 
         return self.bbox
 
-    def update(self, bbox, name, score, num_points, two_stage=False):
+    def update(self, bbox: np.ndarray, name: str, score: float,
+               num_points: Union[int, float], two_stage: bool = False) -> np.ndarray:
         """
         Update state with measurement
         """

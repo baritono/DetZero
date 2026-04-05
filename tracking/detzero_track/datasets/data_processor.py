@@ -1,5 +1,6 @@
 import os
 import copy
+from typing import Dict, Tuple
 
 import torch
 import numpy as np
@@ -9,6 +10,7 @@ from detzero_utils.ops.roiaware_pool3d import roiaware_pool3d_utils
 
 from detzero_track.utils.transform_utils import yaw_filter, transform_boxes3d
 from detzero_track.models.tracking_modules.data_association import bev_overlap_gpu
+from detzero_track.structures import FrameDetectionData
 
 
 class DataProcessor(object):
@@ -23,7 +25,7 @@ class DataProcessor(object):
             cur_processor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_processor_queue.append(cur_processor)
     
-    def forward(self, data_dict):
+    def forward(self, data_dict: Dict[str, FrameDetectionData]) -> Tuple[Dict[str, FrameDetectionData], Dict[str, FrameDetectionData]]:
         processed_data = dict()
         remove_data = dict()
         sample_idx_list = sorted(list(data_dict.keys()), key=int)
@@ -31,10 +33,10 @@ class DataProcessor(object):
             curr_data = data_dict[sample_idx]
 
             for cur_processor in self.data_processor_queue:
-                curr_data = cur_processor(data_dict=curr_data)
+                curr_data = cur_processor(data_dict=curr_data)  # type: ignore[assignment]
                 if isinstance(curr_data, tuple):
-                    remove_data[sample_idx] = curr_data[1]
-                    curr_data = curr_data[0] 
+                    remove_data[sample_idx] = curr_data[1]  # type: ignore[index]
+                    curr_data = curr_data[0]   # type: ignore[index]
             processed_data[sample_idx] = curr_data
 
         return processed_data, remove_data

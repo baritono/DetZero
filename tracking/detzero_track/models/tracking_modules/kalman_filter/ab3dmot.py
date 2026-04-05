@@ -1,4 +1,6 @@
 import copy
+from typing import List, Union
+
 import numpy as np
 
 from filterpy.kalman import KalmanFilter
@@ -10,8 +12,11 @@ class AB3DMOT(BaseKalmanFilter):
     """
     Kalman Filter same with AB3DMOT
     """
-    def __init__(self, bbox, name, score, frame_id, track_id, num_points=0,
-                 x_dim=5, z_dim=3, delta_t=0.1, p=[1, 1], q=[1, 1], r=1):
+    def __init__(self, bbox: np.ndarray, name: str, score: float,
+                 frame_id: Union[str, int], track_id: int,
+                 num_points: Union[int, float] = 0,
+                 x_dim: int = 5, z_dim: int = 3, delta_t: float = 0.1,
+                 p: list = [1, 1], q: list = [1, 1], r: float = 1) -> None:
         self.name = name
         self.score = score
         self.update_score = score
@@ -77,7 +82,7 @@ class AB3DMOT(BaseKalmanFilter):
         self.kf.x[:7] = bbox.reshape((7, 1))
 
         self.time_since_update = 0
-        self.history = []
+        self.history: List[np.ndarray] = []
         self.hits = 1           # number of total hits including the first detection
         self.hit = 1
         self.miss = 0
@@ -85,7 +90,7 @@ class AB3DMOT(BaseKalmanFilter):
 
         self.age = 0
 
-    def predict(self, frame_id):
+    def predict(self, frame_id: Union[str, int]) -> np.ndarray:
         """
         Preict one step
         """
@@ -108,7 +113,8 @@ class AB3DMOT(BaseKalmanFilter):
         self.bbox = bbox
         return self.bbox
 
-    def update(self, bbox, name, score, num_points, two_stage=False):
+    def update(self, bbox: np.ndarray, name: str, score: float,
+               num_points: Union[int, float], two_stage: bool = False) -> np.ndarray:
         """ 
         Updates the state vector with observed bbox.
         """

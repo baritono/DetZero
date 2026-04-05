@@ -33,6 +33,11 @@ import numpy as np
 import torch
 from typing_extensions import TypedDict
 
+# AnnotationDict is the detection→tracking interface; it is defined in the
+# shared detzero_utils package so that the tracking module can import it
+# without taking a dependency on detzero_det.
+from detzero_utils.structures import AnnotationDict  # noqa: F401  (re-exported)
+
 
 # ---------------------------------------------------------------------------
 # Nested helper dicts
@@ -666,34 +671,9 @@ class ModelInfoDict(ModelInfoDictBase, total=False):
 # Evaluation / annotation output dicts
 # ---------------------------------------------------------------------------
 
-class AnnotationDict(TypedDict, total=False):
-    """Per-sample prediction record returned by ``generate_prediction_dicts``.
-
-    Consumed by the Waymo evaluation toolkit.
-
-    Fields
-    ------
-    name : np.ndarray, shape (N,), dtype str
-        Predicted class name for each detection (e.g. ``'Vehicle'``).
-    score : np.ndarray, shape (N,), dtype float32
-        Detection confidence score in ``[0, 1]``.
-    boxes_lidar : np.ndarray, shape (N, 9), dtype float32
-        Predicted boxes ``[x, y, z, dx, dy, dz, heading, vx, vy]`` in the
-        LiDAR frame.  Velocity columns are zero when not predicted.
-    sequence_name : str
-        Sequence identifier for this frame.
-    frame_id : int or str
-        Frame identifier within the sequence.
-    pose : np.ndarray, shape (4, 4), dtype float64
-        Ego-to-world SE(3) transform for this frame.
-    """
-
-    name: np.ndarray
-    score: np.ndarray
-    boxes_lidar: np.ndarray
-    sequence_name: str
-    frame_id: Union[str, int]
-    pose: np.ndarray
+# AnnotationDict is imported from detzero_utils.structures (see top of file).
+# It is the per-frame detection output record and forms the shared interface
+# between the detection and tracking modules.
 
 
 class RecallDict(TypedDict, total=False):

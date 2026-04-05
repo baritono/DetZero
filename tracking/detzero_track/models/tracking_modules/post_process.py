@@ -1,10 +1,12 @@
 import copy
 from functools import partial
+from typing import Dict
 
 import torch
 import numpy as np
 
 from .data_association import bev_overlap_gpu
+from detzero_track.structures import TrackletData
 
 
 class PostProcessor():
@@ -14,7 +16,7 @@ class PostProcessor():
             cur_processor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.post_process_queue.append(cur_processor)
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: Dict[int, TrackletData]) -> Dict[int, TrackletData]:
         for cur_processor in self.post_process_queue:
             data_dict = cur_processor(data_dict=data_dict)
 

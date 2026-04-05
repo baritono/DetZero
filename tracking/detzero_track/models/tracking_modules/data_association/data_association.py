@@ -1,9 +1,11 @@
 from functools import partial
+from typing import cast, Dict, Tuple
 
 import torch
 import numpy as np
 
 from . import AssigenmentFunc, DistanceFunc
+from detzero_track.structures import FrameDetectionData
 
 
 class associate_det_to_tracks:
@@ -27,13 +29,13 @@ class associate_det_to_tracks:
                 self.score_thresholds[class_n] = config['stage']['SECOND_STAGE']['SCORE_THRESHOLD'][idx]
                 self.stage_distance_method[class_n] = config['stage']['SECOND_STAGE']['DIST_THRESHOLD'][idx]
 
-    def __call__(self, det_data, track_data):
+    def __call__(self, det_data: FrameDetectionData, track_data: FrameDetectionData) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         if self.stage == 'one_stage':
             return self.one_stage(det_data, track_data, self.dist_thresholds)
-        elif self.stage == 'two_stage':
+        else:  # 'two_stage'
             return self.two_stage(det_data, track_data)
 
-    def one_stage(self, det_data, track_data, dist_thresholds):
+    def one_stage(self, det_data: FrameDetectionData, track_data: FrameDetectionData, dist_thresholds: Dict[str, float]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
         det_box = det_data['boxes_global'][:, :7]
         det_name = det_data['name']
@@ -59,7 +61,7 @@ class associate_det_to_tracks:
 
         return matched, tarck_unmatch, det_unmatch, np.zeros(matched.shape[0], dtype=np.int)
 
-    def two_stage(self, det_data, track_data):
+    def two_stage(self, det_data: FrameDetectionData, track_data: FrameDetectionData) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         det_box = det_data['boxes_global']
         det_score = det_data['score']
         num_pts_in_det = det_data['num_points']
@@ -78,10 +80,10 @@ class associate_det_to_tracks:
         first_mask = np.greater_equal(det_score, score_thresholds) & np.greater_equal(num_pts_in_det, point_thresholds)
         first_det_index = np.flatnonzero(first_mask)
 
-        first_det_data = {
+        first_det_data = cast(FrameDetectionData, {
             'boxes_global': det_box[first_det_index],
             'name': det_name[first_det_index]
-        }
+        })
         first_matched, tarck_unmatch, det_unmatch, _ = \
             self.one_stage(first_det_data, track_data, self.dist_thresholds)
 
@@ -95,14 +97,14 @@ class associate_det_to_tracks:
         second_trk_mask[tarck_unmatch] = True
         second_trk_idx = np.flatnonzero(second_trk_mask)
 
-        second_det_data = {
+        second_det_data = cast(FrameDetectionData, {
             'boxes_global': det_box[second_det_idx],
             'name': det_name[second_det_idx]
-        }
-        second_track_data = {
+        })
+        second_track_data = cast(FrameDetectionData, {
             'boxes_global': track_box[second_trk_idx],
             'name': track_name[second_trk_idx]
-        }
+        })
 
 
         second_matched, tarck_unmatch, det_unmatch, _ = \
@@ -124,7 +126,7 @@ class associate_det_to_tracks:
 
         return matched, tarck_unmatch, det_unmatch, matched_stage
 
-    def only_two_stage(self, det_data, track_data):
+    def only_two_stage(self, det_data: FrameDetectionData, track_data: FrameDetectionData) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         det_box = det_data['boxes_global']
         det_score = det_data['score']
         num_pts_in_det = det_data['num_points']
@@ -143,10 +145,10 @@ class associate_det_to_tracks:
         first_mask = np.greater_equal(det_score, score_thresholds) & np.greater_equal(num_pts_in_det, point_thresholds)
         second_det_mask = ~first_mask
         second_det_idx = np.flatnonzero(second_det_mask)
-        second_det_data = {
+        second_det_data = cast(FrameDetectionData, {
             'boxes_global': det_box[second_det_idx],
             'name': det_name[second_det_idx]
-        }
+        })
 
         second_matched, tarck_unmatch, det_unmatch, _ = \
             self.one_stage(second_det_data, track_data, self.stage_distance_method)

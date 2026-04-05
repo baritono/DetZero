@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from detzero_track.models.tracking_modules.data_association import IoUBEV_dis_mat, IoU3D_dis_mat
-from detzero_track.structures import FrameDetectionData, GroundTruthFrameData, TrackletData
+from detzero_track.structures import FrameDetectionData, GroundTruthFrameData, GroundTruthTrackletData, TrackletData
 
 
 def get_iou_mat_dict(
@@ -64,7 +64,7 @@ def get_gt_id_data(
     gt_data: Dict[str, GroundTruthFrameData],
     gt_keys: List[str],
     class_names: List[str],
-) -> Dict[int, TrackletData]:
+) -> Dict[int, GroundTruthTrackletData]:
     """
     convert gt data from index by frame to index by obj_id 
     Args:
@@ -90,7 +90,7 @@ def get_gt_id_data(
             gt_id_data[obj_id]['sample_idx'].append(str(sample_idx))
             gt_id_data[obj_id]['iou_idx'].append(idx)
 
-    return gt_id_data
+    return gt_id_data  # type: ignore[return-value]
 
 
 def get_trajectory_similarity(track_a, track_b, iou_mat_dict,

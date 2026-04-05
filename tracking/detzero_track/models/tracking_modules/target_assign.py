@@ -1,11 +1,24 @@
 import numpy as np
+from typing import Any, Dict, List, Tuple, cast
 
 from detzero_track.utils.data_utils import frame_list_to_dict, tracklets_to_frames
 from detzero_track.utils.track_calculation import get_iou_mat_dict, get_gt_id_data
-from .data_association import GNN_assignment
+from detzero_track.models.tracking_modules.data_association import GNN_assignment
+from detzero_track.structures import (
+    AssignTargetResult,
+    FrameDetectionData,
+    GroundTruthFrameData,
+    GroundTruthTrackletData,
+    LabeledTrackEntry,
+    TrackletData,
+    UnlabeledTrackEntry,
+)
 
 
-def assign_track_target(input_data, iou_thresholds):
+def assign_track_target(
+    input_data: Tuple[Dict[str, FrameDetectionData], Dict[int, TrackletData], Dict[str, GroundTruthFrameData]],
+    iou_thresholds: Dict[str, float],
+) -> AssignTargetResult:
     """
     Function:
         Assign ground-truth data for object tracks
@@ -20,24 +33,26 @@ def assign_track_target(input_data, iou_thresholds):
     Returns:
     - dictionary containing labeled and unlabeled data
     """
-    det_data, tk_data, gt_data = input_data[0], input_data[1], input_data[2]
+    det_data: Dict[str, FrameDetectionData]
+    tk_data: Dict[int, TrackletData]
+    list_gt_data: Dict[str, GroundTruthFrameData]
+    det_data, tk_data, list_gt_data = input_data[0], input_data[1], input_data[2]  # type: ignore[misc]
     class_names = list(iou_thresholds.keys())
 
     # Convert data to desired format
-    list_track_data = tracklets_to_frames({
+    list_track_data_raw = tracklets_to_frames({
         'reference': det_data,
         'source': tk_data
     })
-    list_track_data = frame_list_to_dict(list_track_data)
+    list_track_data: Dict[str, FrameDetectionData] = frame_list_to_dict(list_track_data_raw)
 
     # Get IOU matrix dictionary
-    list_gt_data = gt_data
     iou_mat_dict = get_iou_mat_dict(
         list_gt_data, list_track_data, class_names, True, 'bev')
 
     # Get ground truth data by ID
     gt_keys = ['gt_boxes_global', 'gt_boxes_lidar', 'name', 'obj_ids']            
-    gt_data = get_gt_id_data(list_gt_data, gt_keys, class_names)
+    gt_data: Dict[int, GroundTruthTrackletData] = get_gt_id_data(list_gt_data, gt_keys, class_names)
     gt_ids = list(gt_data.keys())
     tk_ids = list(tk_data.keys())
 
@@ -48,7 +63,7 @@ def assign_track_target(input_data, iou_thresholds):
     # Add IOU indices to tracking data
     for key, val in list_track_data.items():
         for iou_idx, obj_id in enumerate(val['obj_ids']):
-            tk_data[obj_id]['iou_idx'].append(iou_idx)
+            tk_data[obj_id]['iou_idx'].append(iou_idx)  # type: ignore[attr-defined]
 
     # Loop through frames and match ground truth data with tracking data
     frame_list = list(list_gt_data.keys())
@@ -62,8 +77,8 @@ def assign_track_target(input_data, iou_thresholds):
             if gt_name not in class_names: continue
 
             gt_id_idx = gt_ids.index(gt_id)
-            sample_gt_idx = gt_data[gt_id]['sample_idx'].index(sample_idx)
-            gt_idx = gt_data[gt_id]['iou_idx'][sample_gt_idx]
+            sample_gt_idx = list(gt_data[gt_id]['sample_idx']).index(sample_idx)  # type: ignore[arg-type]
+            gt_idx = gt_data[gt_id]['iou_idx'][sample_gt_idx]  # type: ignore[index]
 
             for i, tk_id in enumerate(frame_track_data['obj_ids']):
                 tk_id_idx = tk_ids.index(tk_id)
@@ -77,7 +92,7 @@ def assign_track_target(input_data, iou_thresholds):
     # Calculate final similarity matrix and perform GNN assignment
     for gt_idx, gt_id in enumerate(gt_ids):
         gt_val = gt_data[gt_id]
-        gt_len = len(gt_val['sample_idx'])
+        gt_len = len(list(gt_val['sample_idx']))  # type: ignore[arg-type]
 
         for i, tk_id in enumerate(tk_ids):
             track_val = tk_data[tk_id]
@@ -90,8 +105,8 @@ def assign_track_target(input_data, iou_thresholds):
     match, unmatch_gt, unmatch_track = GNN_assignment(1-traj_similar_mat)
 
     # Create labeled and unlabeled data dictionaries
-    label_data = dict()
-    unlabel_data = dict()
+    label_data: Dict[int, LabeledTrackEntry] = {}
+    unlabel_data: Dict[int, UnlabeledTrackEntry] = {}
 
     # Add labeled data to dictionary
     for match_idx in range(len(match)):
@@ -102,17 +117,17 @@ def assign_track_target(input_data, iou_thresholds):
         inter_sample_idx = np.intersect1d(gt_data[gt_id]['sample_idx'], 
                                             tk_data[tk_id]['sample_idx'])
         for idx, sample_idx in enumerate(inter_sample_idx):
-            sample_gt_idx = gt_data[gt_id]['sample_idx'].index(sample_idx)
-            iou_gt_idx = gt_data[gt_id]['iou_idx'][sample_gt_idx]
+            sample_gt_idx = list(gt_data[gt_id]['sample_idx']).index(sample_idx)  # type: ignore[arg-type]
+            iou_gt_idx = gt_data[gt_id]['iou_idx'][sample_gt_idx]  # type: ignore[index]
             sample_tk_idx = list(tk_data[tk_id]['sample_idx']).index(sample_idx)
-            iou_tk_idx = tk_data[tk_id]['iou_idx'][sample_tk_idx]
+            iou_tk_idx = tk_data[tk_id]['iou_idx'][sample_tk_idx]  # type: ignore[index]
 
             match_iou = iou_mat_dict[sample_idx][iou_gt_idx, iou_tk_idx]
             tk_data[tk_id]['iou'][sample_tk_idx] = match_iou
 
         gt_data[gt_id].pop('iou_idx')
         for key in gt_data[gt_id].keys():
-            gt_data[gt_id][key] = np.array(gt_data[gt_id][key])
+            gt_data[gt_id][key] = np.array(gt_data[gt_id][key])  # type: ignore[literal-required]
 
         pos_diff = np.linalg.norm(gt_data[gt_id]['gt_boxes_global'][0, :2] - \
             gt_data[gt_id]['gt_boxes_global'][-1, :2], ord=2, axis=0)
@@ -123,17 +138,17 @@ def assign_track_target(input_data, iou_thresholds):
             tk_data[tk_id]['state'] = 'static'
 
         tk_data[tk_id].pop('iou_idx')
-        label_data[tk_id] = {
+        label_data[tk_id] = cast(LabeledTrackEntry, {
             'track': tk_data[tk_id],
             'gt': gt_data[gt_id]
-        }
+        })
 
     # Add unlabeled data to dictionary
     for unmatch_tk_idx in unmatch_track:
         tk_id = tk_ids[unmatch_tk_idx]
         tk_data[tk_id].pop('iou_idx')
 
-        unlabel_data[tk_id] = {
+        unlabel_data[tk_id] = cast(UnlabeledTrackEntry, {
             'track': tk_data[tk_id]
-        }
-    return {'label':label_data, 'unlabel':unlabel_data}
+        })
+    return cast(AssignTargetResult, {'label': label_data, 'unlabel': unlabel_data})

@@ -8,11 +8,11 @@ import torch
 import numpy as np
 
 from . import data_association, kalman_filter
-from detzero_track.structures import FrameDetectionData, TrackFrameState, TrackletData
+from detzero_track.structures import FrameDetectionData, TrackFrameState, TrackletData, TrackManagerModules
 
 
 class TrackManager():
-    def __init__(self, model_cfg, init_track_id=0):
+    def __init__(self, model_cfg, init_track_id: int = 0) -> None:
         self.model_cfg = model_cfg
         self.init_track_id = init_track_id
 
@@ -20,17 +20,17 @@ class TrackManager():
             'filter', 'track_age', 'data_association', 
             'track_merge', 'reverse_tracking'
         ]
-        self.modules_dicts = self.build_modules()
+        self.modules_dicts: TrackManagerModules = self.build_modules()
 
-    def build_modules(self):
-        modules_dicts = {}
+    def build_modules(self) -> TrackManagerModules:
+        modules_dicts: TrackManagerModules = {}  # type: ignore[typeddict-item]
         for module_name in self.module_topology:
             modules_dicts = getattr(self, 'build_%s' % module_name)(
                 modules_dicts=modules_dicts
             )
         return modules_dicts
 
-    def build_filter(self, modules_dicts):
+    def build_filter(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('FILTER', None) is None:
             return modules_dicts
 
@@ -41,7 +41,7 @@ class TrackManager():
         modules_dicts['filter_config'] = filter_cfg
         return modules_dicts
 
-    def build_track_age(self, modules_dicts):
+    def build_track_age(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('TRACK_AGE', None) is None:
             return modules_dicts
 
@@ -50,7 +50,7 @@ class TrackManager():
         modules_dicts['track_age_config'] = age_cfg
         return modules_dicts
 
-    def build_data_association(self, modules_dicts):
+    def build_data_association(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('DATA_ASSOCIATION', None) is None:
             return modules_dicts
 
@@ -61,7 +61,7 @@ class TrackManager():
         modules_dicts['data_association_config'] = assoc_cfg
         return modules_dicts
 
-    def build_track_merge(self, modules_dicts):
+    def build_track_merge(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('TRACK_MERGE', None) is None:
             return modules_dicts
 
@@ -75,7 +75,7 @@ class TrackManager():
         modules_dicts['track_merge_config'] = merge_cfg
         return modules_dicts
 
-    def build_reverse_tracking(self, modules_dicts):
+    def build_reverse_tracking(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('REVERSE_TRACKING', None) is None:
             return modules_dicts
 

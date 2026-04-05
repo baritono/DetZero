@@ -10,6 +10,12 @@ from .structures import (
     TrackletData,
     GroundTruthAnnotations,
     GroundTruthFrameData,
+    GroundTruthTrackletData,
+    LabeledTrackEntry,
+    UnlabeledTrackEntry,
+    AssignTargetResult,
+    EvalSequenceInput,
+    TrackManagerModules,
 )
 
 __all__ = [
@@ -21,6 +27,12 @@ __all__ = [
     'TrackletData',
     'GroundTruthAnnotations',
     'GroundTruthFrameData',
+    'GroundTruthTrackletData',
+    'LabeledTrackEntry',
+    'UnlabeledTrackEntry',
+    'AssignTargetResult',
+    'EvalSequenceInput',
+    'TrackManagerModules',
 ]
 
 

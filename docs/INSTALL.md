@@ -1,5 +1,10 @@
 # Installation
 
+> Note for Ubuntu 24.04 users:
+> See `docs/UBUNTU24_UPGRADE_PATH.md` for an upgrade path based on official
+> compatibility matrices for Python/Conda, Waymo Open Dataset, CUDA, PyTorch,
+> and GCC.
+
 ## Prerequisites
 All the codes are tested in the environment:
 - Linux (tested on Ubuntu 16.04/18.04/20.04)

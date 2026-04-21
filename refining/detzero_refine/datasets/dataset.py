@@ -4,6 +4,7 @@ import copy
 import random
 import time
 from collections import defaultdict
+from typing import Dict, List, Union, Any
 
 import numpy as np
 import torch
@@ -11,6 +12,13 @@ import torch
 from detzero_utils.common_utils import multi_processing
 
 from detzero_refine.utils.data_utils import rotate_yaw
+from detzero_refine.structures import (
+    ConfidenceSampleDict,
+    GeometrySampleDict,
+    PositionSampleDict,
+    RefineBatchDict,
+    TrackObjectInfo,
+)
 
 
 class DatasetTemplate(torch.utils.data.Dataset):
@@ -50,7 +58,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
             Load sequence infos and load points
         """
         print('Loading Waymo Data for %s.' % self.split)
-        self.data_infos = {}
+        self.data_infos: Dict[str, TrackObjectInfo] = {}
         self.load_track_infos()
         self.sort_track_infos(self.data_infos)
         del self.data_infos
@@ -95,7 +103,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         self.logger.info(log_str)
 
     def load_infos_worker(self, seq_name):
-        data_infos = {}
+        data_infos: Dict[str, TrackObjectInfo] = {}
 
         seq_infos = pickle.load(open(seq_name, 'rb'))
         obj_ids = list(seq_infos.keys())
@@ -123,7 +131,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
 
         return data_infos
 
-    def sort_track_infos(self, data_infos):
+    def sort_track_infos(self, data_infos: Dict[str, TrackObjectInfo]):
         if self.training and len(self.class_names) == 3:
             self.veh_infos, self.ped_infos, self.cyc_infos = [], [], []
             
@@ -197,7 +205,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
 
         track_feats = self.extract_track_feature(data_info)
 
-        data_dict = {}
+        data_dict: Dict[str, Any] = {}
         data_dict.update(track_feats)
 
         data_dict = self.prepare_data(data_dict=data_dict)
@@ -205,7 +213,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
         return data_dict
 
     @staticmethod
-    def collate_batch(batch_list, _unused=False):
+    def collate_batch(batch_list: List[Dict[str, Any]], _unused=False) -> Dict[str, Any]:
         data_dict = defaultdict(list)
         batch_size = len(batch_list)
         tta = 'tta_original' in batch_list[0]
@@ -226,7 +234,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
                 for key, val in cur_sample.items():
                     data_dict[key].append(val)
 
-        ret = {}
+        ret: Dict[str, Any] = {}
 
         for key, val in data_dict.items():
             try:
@@ -250,6 +258,7 @@ class DatasetTemplate(torch.utils.data.Dataset):
                     max_len = max(data_dict['geo_query_num'])
                     temp = []
                     for i, box in enumerate(val):
+                        box = np.array(box)
                         box_pad = np.zeros([max_len-box.shape[0], box.shape[1]])
                         box_pad = np.concatenate([box, box_pad], axis=0)
                         temp.append(box_pad)
@@ -263,4 +272,3 @@ class DatasetTemplate(torch.utils.data.Dataset):
 
         ret['batch_size'] = batch_size if not tta else int(batch_size * len(tta_ops))
         return ret
-

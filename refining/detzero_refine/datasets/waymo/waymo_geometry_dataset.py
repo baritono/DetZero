@@ -1,12 +1,20 @@
 import copy
 import random
 from pathlib import Path
+from typing import Dict
 
 import numpy as np
 
 from detzero_utils import common_utils
 
 from detzero_refine.datasets.dataset import DatasetTemplate
+from detzero_refine.structures import (
+    GeometryBatchDict,
+    GeometryPredDict,
+    GeometryPredictionStore,
+    GeometrySampleDict,
+    TrackObjectInfo,
+)
 from detzero_refine.utils.data_utils import sample_points, local_coords_transform
 from detzero_refine.utils.geometry_augment import (augment_full_track,
                                                    augment_single_box,
@@ -23,7 +31,7 @@ class WaymoGeometryDataset(DatasetTemplate):
 
         self.init_infos(self.mode)
 
-    def extract_track_feature(self, data_info):
+    def extract_track_feature(self, data_info: TrackObjectInfo) -> GeometrySampleDict:
         traj_all = data_info['boxes_global']
         score_all = data_info['score']
         frame_id_all = data_info['sample_idx']
@@ -132,7 +140,7 @@ class WaymoGeometryDataset(DatasetTemplate):
         query_points = np.array(query_pts)
 
 
-        obj_info = {
+        obj_info: GeometrySampleDict = {
             'sequence_name': data_info['sequence_name'],
             'frame': frm_id,
             'obj_id': data_info['obj_id'],
@@ -158,7 +166,7 @@ class WaymoGeometryDataset(DatasetTemplate):
         return test_time_augment(data_dict)
 
     @staticmethod
-    def revert_to_each_frame(data_dict):
+    def revert_to_each_frame(data_dict: GeometryPredDict):
         res_list = []
 
         for i, pred_box in enumerate(data_dict['pred_boxes']):
@@ -186,7 +194,12 @@ class WaymoGeometryDataset(DatasetTemplate):
         return res_list
 
 
-    def generate_prediction_dicts(self, batch_dict, pred_dicts, single_pred_dict, output_path=None):
+    def generate_prediction_dicts(
+            self,
+            batch_dict: GeometryBatchDict,
+            pred_dicts: GeometryPredDict,
+            single_pred_dict: GeometryPredictionStore,
+            output_path=None):
         """
         Args:
             batch_dict:
@@ -220,7 +233,7 @@ class WaymoGeometryDataset(DatasetTemplate):
 
             return boxes_lidar
 
-        annos = []
+        annos: list = []
 
         all_pred_res = generate_single_sample_dict(pred_dicts)
         for i in range(len(all_pred_res)):

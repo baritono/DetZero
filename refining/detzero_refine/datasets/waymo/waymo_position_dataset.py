@@ -3,6 +3,7 @@ import pickle
 import copy
 import random
 from pathlib import Path
+from typing import Dict
 
 import numpy as np
 
@@ -10,6 +11,13 @@ from detzero_utils import common_utils
 from detzero_utils.box_utils import boxes_to_corners_3d
 
 from detzero_refine.datasets.dataset import DatasetTemplate
+from detzero_refine.structures import (
+    PositionBatchDict,
+    PositionPredDict,
+    PositionPredictionStore,
+    PositionSampleDict,
+    TrackObjectInfo,
+)
 from detzero_refine.utils.position_augment import augment_full_track, test_time_augment
 from detzero_refine.utils.data_utils import (sample_points,
                                              world_to_lidar,
@@ -28,7 +36,7 @@ class WaymoPositionDataset(DatasetTemplate):
         self.memory_pts_num = self.dataset_cfg.get('MEMORY_POINTS_NUM', 48)
 
 
-    def extract_track_feature(self, data_info):
+    def extract_track_feature(self, data_info: TrackObjectInfo) -> PositionSampleDict:
         obj_cls = self.class_map[data_info['name']]
         traj_all = data_info['boxes_global']
         score_all = data_info['score']
@@ -142,7 +150,7 @@ class WaymoPositionDataset(DatasetTemplate):
         # do augmentation after all the distance related calculation
         if self.training and self.augment_full:
             query_pts, traj_pts, traj, traj_gt = augment_full_track(
-                query_pts, traj_pts, traj, traj_gt)
+                query_pts, traj_pts, traj, traj_gt)  # type: ignore[call-arg]
         
         # pad the box
         local_pts_data = np.concatenate([
@@ -162,7 +170,7 @@ class WaymoPositionDataset(DatasetTemplate):
         padding_mask = np.concatenate(
             (np.zeros(box_num), np.full(self.query_num-box_num, 1)), axis=0)
 
-        obj_info = {
+        obj_info: PositionSampleDict = {
             'sequence_name': data_info['sequence_name'],
             'frame': frm_id,
             'obj_id': data_info['obj_id'],
@@ -187,7 +195,12 @@ class WaymoPositionDataset(DatasetTemplate):
     def tta_operator(data_dict):
         return test_time_augment(data_dict)
 
-    def generate_prediction_dicts(self, batch_dict, pred_dicts, single_pred_dict, output_path=None):
+    def generate_prediction_dicts(
+            self,
+            batch_dict: PositionBatchDict,
+            pred_dicts: PositionPredDict,
+            single_pred_dict: PositionPredictionStore,
+            output_path=None):
         """
         Args:
             batch_dict:
@@ -217,7 +230,7 @@ class WaymoPositionDataset(DatasetTemplate):
 
             return self.revert_to_each_frame(box_dict)
 
-        annos = []
+        annos: list = []
 
         all_pred_res, all_gt_res, all_pred_world_res, all_gt_world_res = generate_single_sample_dict(pred_dicts)
 
@@ -254,7 +267,7 @@ class WaymoPositionDataset(DatasetTemplate):
 
         return annos
 
-    def revert_to_each_frame(self, data_dict):
+    def revert_to_each_frame(self, data_dict: PositionPredDict):
         seq_lidar = []
         seq_world = []
         seq_lidar_gt = []

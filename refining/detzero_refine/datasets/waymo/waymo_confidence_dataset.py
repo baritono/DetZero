@@ -10,6 +10,13 @@ import numpy as np
 from detzero_utils.box_utils import boxes_to_corners_3d
 
 from detzero_refine.datasets.dataset import DatasetTemplate
+from detzero_refine.structures import (
+    ConfidenceBatchDict,
+    ConfidencePredDict,
+    ConfidencePredictionStore,
+    ConfidenceSampleDict,
+    TrackObjectInfo,
+)
 from detzero_refine.utils.data_utils import sample_points, init_coords_transform, world_to_lidar
 
 
@@ -56,12 +63,14 @@ class WaymoConfidenceDataset(DatasetTemplate):
 
         return data_dict
 
-    def extract_track_feature(self, data_info):
+    def extract_track_feature(self, data_info: TrackObjectInfo) -> ConfidenceSampleDict:
         traj_all = data_info['boxes_global']
         score_all = data_info['score']
         frame_id_all = data_info['sample_idx']
         pts_all = data_info['pts']
         iou_all = data_info.get('refine_iou', None)
+        if iou_all is None:
+            iou_all = np.zeros(len(traj_all), dtype=np.float32)
         
         # randomly sample the object track
         if self.training:
@@ -147,7 +156,7 @@ class WaymoConfidenceDataset(DatasetTemplate):
         iou = np.concatenate((iou, np.full(self.query_num-len(iou), -1)), axis=0)
         score = np.concatenate((score, np.full(self.query_num-len(score), -1)), axis=0)
 
-        obj_info = {
+        obj_info: ConfidenceSampleDict = {
             'sequence_name': data_info['sequence_name'],
             'frame': frame_id,
             'obj_id': data_info['obj_id'],
@@ -161,7 +170,12 @@ class WaymoConfidenceDataset(DatasetTemplate):
 
         return obj_info
 
-    def generate_prediction_dicts(self, batch_dict, pred_dicts, single_pred_dict, output_path=None):
+    def generate_prediction_dicts(
+            self,
+            batch_dict: ConfidenceBatchDict,
+            pred_dicts: ConfidencePredDict,
+            single_pred_dict: ConfidencePredictionStore,
+            output_path=None):
         """
         Args:
             batch_dict:
@@ -172,7 +186,7 @@ class WaymoConfidenceDataset(DatasetTemplate):
 
         Returns:
         """
-        annos = []
+        annos: list = []
 
         for i in range(batch_dict['batch_size']):
             seq = batch_dict['sequence_name'][i]

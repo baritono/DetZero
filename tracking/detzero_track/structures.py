@@ -32,7 +32,7 @@ import numpy as np
 from typing_extensions import TypedDict
 
 # The detection→tracking interface type lives in the shared utilities package.
-from detzero_utils.structures import AnnotationDict  # noqa: F401  (re-exported)
+from detzero_utils.structures import AnnotationDict, FrameId  # noqa: F401  (re-exported)
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ class FrameDetectionData(AnnotationDict, total=False):
 
     boxes_global: np.ndarray
     num_points: np.ndarray
-    sample_idx: Union[str, int]
+    sample_idx: FrameId
     timestamp: float
     obj_ids: np.ndarray
     """Per-frame object/track IDs, shape ``(N,)``, dtype int-like.
@@ -130,7 +130,7 @@ class TrackFrameState(TypedDict):
     boxes_global: np.ndarray
     name: str
     score: float
-    sample_idx: Union[str, int]
+    sample_idx: FrameId
     hit: int
     num_points: Union[int, float]
     obj_ids: int
@@ -305,8 +305,8 @@ class GroundTruthFrameData(TypedDict, total=False):
 
     annos: GroundTruthAnnotations
     sequence_name: str
-    frame_id: Union[str, int]
-    sample_idx: Union[str, int]
+    frame_id: FrameId
+    sample_idx: FrameId
     pose: np.ndarray
 
 

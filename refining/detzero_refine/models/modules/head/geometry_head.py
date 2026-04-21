@@ -2,12 +2,14 @@ import copy
 
 import torch
 import torch.nn as nn
+from typing import Dict
 
 from detzero_refine.utils.mmdet_utils import multi_apply
 
 from detzero_refine.models.modules.transformer import (PositionEmbeddingLearned,
                                                        FFN,
                                                        TransformerDecoderLayer)
+from detzero_refine.structures import GeometryBatchDict
 
 
 class GeometryHead(nn.Module):
@@ -111,7 +113,7 @@ class GeometryHead(nn.Module):
             new_res[key] = torch.stack([ret_dict[key] for ret_dict in ret_dicts])
         return [new_res]
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: GeometryBatchDict):
         query = [data_dict['query']]
         memory = [data_dict['memory']]
         query_pos = [data_dict['geo_query_boxes'][..., 3:6]]

@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict
 
 from detzero_utils.model_utils import make_linear_layers, make_fc_layers
 
 from detzero_refine.models.modules.head import GeometryHead
 from detzero_refine.models.modules.target_assign import TargetAssigner
+from detzero_refine.structures import GeometryBatchDict
 
 
 class GeometryTransformer(nn.Module):
@@ -72,7 +74,7 @@ class GeometryTransformer(nn.Module):
             self._points_intermediate = output
         return fn
 
-    def assign_targets(self, data_dict):
+    def assign_targets(self, data_dict: GeometryBatchDict):
         gt_box = data_dict['gt_geo_query_boxes']
         query_num = gt_box.size(1)
         geo_cls, geo_reg = [], []
@@ -88,7 +90,7 @@ class GeometryTransformer(nn.Module):
         }
         return targets_dict
 
-    def generate_predicted_boxes(self, preds_dict, data_dict):
+    def generate_predicted_boxes(self, preds_dict: Dict[str, torch.Tensor], data_dict: GeometryBatchDict):
         layer_num, bs, query_num, _ = preds_dict['geometry_cls'].size()
         query_num_ori = preds_dict['geo_query_num']
         layer_boxes = []
@@ -115,7 +117,7 @@ class GeometryTransformer(nn.Module):
         res = layer_boxes.mean(0)
         return res
     
-    def forward(self, data_dict):
+    def forward(self, data_dict: GeometryBatchDict):
         m_pts = data_dict['geo_memory_points'].permute(0, 2, 1)
         bs, channel, pts_num = m_pts.size()
 

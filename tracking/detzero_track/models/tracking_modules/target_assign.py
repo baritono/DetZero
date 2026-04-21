@@ -43,7 +43,7 @@ def assign_track_target(input_data, iou_thresholds):
 
     # Initialize similarity and count matrices
     traj_similar_mat = np.zeros((len(gt_ids), len(tk_ids)), dtype=np.float32)
-    traj_count_mat = np.zeros((len(gt_ids), len(tk_ids)), dtype=np.int)
+    traj_count_mat = np.zeros((len(gt_ids), len(tk_ids)), dtype=np.int64)
 
     # Add IOU indices to tracking data
     for key, val in list_track_data.items():

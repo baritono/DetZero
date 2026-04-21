@@ -217,7 +217,7 @@ class TrackManager():
 
     def reverse_tracking_module(self, frame_id, det_data, trk_data, tracks):
         track_data = self.predict_tracks(frame_id, tracks)
-        trk_mask = ~ trk_data['start'].astype(np.bool)
+        trk_mask = ~ trk_data['start'].astype(np.bool_)
 
         for key in track_data.keys():
             track_data[key] = np.concatenate((
@@ -261,7 +261,7 @@ class TrackManager():
 
     def overlap_track_merge(self, tracks):
         tk_boxes = np.zeros((len(tracks), 7), dtype=np.float32)
-        tk_age = np.zeros(len(tracks), dtype=np.int)
+        tk_age = np.zeros(len(tracks), dtype=np.int64)
         tk_area = np.zeros(len(tracks), dtype=np.float32)
         tk_name = list()
 

@@ -31,7 +31,7 @@ def get_iou_mat_dict(gt_data, pred_data, class_names, distinguish_class=True, io
         if name_len == 0 or track_len == 0:
             iou_mat = np.zeros((name_len, track_len), dtype=np.float32)
         else:
-            name_mask = np.zeros_like(annos['name'], dtype=np.bool)
+            name_mask = np.zeros_like(annos['name'], dtype=np.bool_)
             for class_n in class_names:
                 name_mask = name_mask | (annos['name'] == class_n)
             gt_boxes_lidar = annos['gt_boxes_lidar'][name_mask, :]
@@ -67,7 +67,7 @@ def get_gt_id_data(gt_data, gt_keys, class_names):
         annos = item['annos']
         name_len = len(gt_data[sample_idx]['annos']['name'])
         if name_len == 0: continue
-        name_mask = np.zeros_like(annos['name'], dtype=np.bool)
+        name_mask = np.zeros_like(annos['name'], dtype=np.bool_)
         for class_n in class_names:
             name_mask = name_mask | (annos['name'] == class_n)
         for idx, obj_id in enumerate(annos['obj_ids'][name_mask]):

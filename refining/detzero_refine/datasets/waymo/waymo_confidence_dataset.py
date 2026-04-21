@@ -179,7 +179,7 @@ class WaymoConfidenceDataset(DatasetTemplate):
             obj_id = batch_dict['obj_id'][i]
             box_num = int(batch_dict['box_num'][i])
 
-            frm_id = batch_dict['frame'][i][:box_num].astype(np.int)
+            frm_id = batch_dict['frame'][i][:box_num].astype(int)
             score = batch_dict['conf_score'].cpu().numpy()[i][:box_num]
             pred_score = pred_dicts['pred_score'][i][:box_num]
 

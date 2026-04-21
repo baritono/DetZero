@@ -15,7 +15,7 @@ from typing_extensions import TypedDict
 
 from detzero_utils.structures import FrameId, PoseMatrix, SequenceName
 
-ArrayLike = Union[np.ndarray, torch.Tensor]
+NumpyOrTorchArray = Union[np.ndarray, torch.Tensor]
 TrackId = Union[int, str]
 
 
@@ -123,30 +123,30 @@ class RefineBatchDict(TypedDict, total=False):
     sequence_name: np.ndarray
     frame: np.ndarray
     obj_id: np.ndarray
-    obj_cls: ArrayLike
+    obj_cls: NumpyOrTorchArray
     pose: np.ndarray
     state: List[str]
-    matched: ArrayLike
+    matched: NumpyOrTorchArray
     matched_tracklet: List[bool]
-    geo_query_num: ArrayLike
-    geo_query_boxes: ArrayLike
-    geo_query_points: ArrayLike
-    geo_memory_points: ArrayLike
+    geo_query_num: NumpyOrTorchArray
+    geo_query_boxes: NumpyOrTorchArray
+    geo_query_points: NumpyOrTorchArray
+    geo_memory_points: NumpyOrTorchArray
     geo_trajectory: np.ndarray
-    geo_score: ArrayLike
-    gt_geo_query_boxes: ArrayLike
-    gt_geo_trajectory: ArrayLike
-    pos_trajectory: ArrayLike
-    gt_pos_trajectory: ArrayLike
-    pos_scores: ArrayLike
-    pos_init_box: ArrayLike
-    padding_mask: ArrayLike
-    pos_query_points: ArrayLike
-    pos_memory_points: ArrayLike
-    iou: ArrayLike
-    box_num: ArrayLike
-    conf_score: ArrayLike
-    conf_points: ArrayLike
+    geo_score: NumpyOrTorchArray
+    gt_geo_query_boxes: NumpyOrTorchArray
+    gt_geo_trajectory: NumpyOrTorchArray
+    pos_trajectory: NumpyOrTorchArray
+    gt_pos_trajectory: NumpyOrTorchArray
+    pos_scores: NumpyOrTorchArray
+    pos_init_box: NumpyOrTorchArray
+    padding_mask: NumpyOrTorchArray
+    pos_query_points: NumpyOrTorchArray
+    pos_memory_points: NumpyOrTorchArray
+    iou: NumpyOrTorchArray
+    box_num: NumpyOrTorchArray
+    conf_score: NumpyOrTorchArray
+    conf_points: NumpyOrTorchArray
     query: torch.Tensor
     memory: torch.Tensor
     query_pos: torch.Tensor
@@ -154,9 +154,16 @@ class RefineBatchDict(TypedDict, total=False):
     pred_score: torch.Tensor
 
 
-GeometryBatchDict = RefineBatchDict
-PositionBatchDict = RefineBatchDict
-ConfidenceBatchDict = RefineBatchDict
+class GeometryBatchDict(RefineBatchDict, total=False):
+    """Geometry-refining batch view (keys relevant to geometry flow)."""
+
+
+class PositionBatchDict(RefineBatchDict, total=False):
+    """Position-refining batch view (keys relevant to position flow)."""
+
+
+class ConfidenceBatchDict(RefineBatchDict, total=False):
+    """Confidence-refining batch view (keys relevant to confidence flow)."""
 
 
 class GeometryPredDict(TypedDict):

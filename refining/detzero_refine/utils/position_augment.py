@@ -6,7 +6,7 @@ from detzero_utils import common_utils
 from .data_utils import limit_heading_range
 
 
-def augment_full_track(self, local_pts, global_pts, traj, traj_gt):
+def augment_full_track(local_pts, global_pts, traj, traj_gt):
     # Flip along X-axis
     if np.random.random() < 0.5:
         local_pts[..., 1] = -local_pts[..., 1]
@@ -149,5 +149,4 @@ def test_time_augment(data_dict):
             data_dict_tta[key]['trajectory'][:, 6])
     
     return data_dict_tta
-
 

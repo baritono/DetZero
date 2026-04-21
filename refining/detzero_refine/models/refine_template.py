@@ -10,7 +10,7 @@ from detzero_refine.models.modules import PositionTransformer
 from detzero_refine.models.modules import ConfidencePointnet
 from detzero_refine.structures import RefineBatchDict
 
-MODEL_REGISTRY = {
+_MODEL_REGISTRY = {
     'GeometryTransformer': GeometryTransformer,
     'PositionTransformer': PositionTransformer,
     'ConfidencePointnet': ConfidencePointnet
@@ -42,7 +42,7 @@ class RefineTemplate(nn.Module):
         }
 
         name = self.model_cfg.REGRESSION['NAME']
-        reg = MODEL_REGISTRY[name](
+        reg = _MODEL_REGISTRY[name](
             model_cfg=self.model_cfg.REGRESSION,
             query_point_dims=model_info_dict['query_point_dims'],
             memory_point_dims=model_info_dict['memory_point_dims']

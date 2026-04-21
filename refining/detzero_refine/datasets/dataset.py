@@ -258,7 +258,8 @@ class DatasetTemplate(torch.utils.data.Dataset):
                     max_len = max(data_dict['geo_query_num'])
                     temp = []
                     for i, box in enumerate(val):
-                        box = np.array(box)
+                        if not isinstance(box, np.ndarray):
+                            box = np.array(box)
                         box_pad = np.zeros([max_len-box.shape[0], box.shape[1]])
                         box_pad = np.concatenate([box, box_pad], axis=0)
                         temp.append(box_pad)

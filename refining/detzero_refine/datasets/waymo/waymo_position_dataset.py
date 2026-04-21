@@ -150,7 +150,7 @@ class WaymoPositionDataset(DatasetTemplate):
         # do augmentation after all the distance related calculation
         if self.training and self.augment_full:
             query_pts, traj_pts, traj, traj_gt = augment_full_track(
-                query_pts, traj_pts, traj, traj_gt)  # type: ignore[call-arg]
+                query_pts, traj_pts, traj, traj_gt)
         
         # pad the box
         local_pts_data = np.concatenate([

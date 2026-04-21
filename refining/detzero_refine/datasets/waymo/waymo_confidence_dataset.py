@@ -70,7 +70,7 @@ class WaymoConfidenceDataset(DatasetTemplate):
         pts_all = data_info['pts']
         iou_all = data_info.get('refine_iou', None)
         if iou_all is None:
-            iou_all = np.zeros(len(traj_all), dtype=np.float32)
+            iou_all = np.full(len(traj_all), -1, dtype=np.float32)
         
         # randomly sample the object track
         if self.training:

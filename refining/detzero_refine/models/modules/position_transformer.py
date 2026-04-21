@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict
 
 from detzero_utils.model_utils import make_linear_layers, make_fc_layers, make_conv_layers
 from detzero_utils import common_utils
@@ -9,6 +10,7 @@ from detzero_utils import common_utils
 from detzero_refine.utils.mmdet_utils import FocalLoss
 from detzero_refine.models.modules.head import PositionHead
 from detzero_refine.models.modules.target_assign import TargetAssigner
+from detzero_refine.structures import PositionBatchDict
 
 
 class PositionTransformer(nn.Module):
@@ -95,7 +97,7 @@ class PositionTransformer(nn.Module):
             self._points_intermediate = output
         return fn
     
-    def forward(self, data_dict):
+    def forward(self, data_dict: PositionBatchDict):
 
         local_pts = data_dict['pos_query_points']
         global_pts = data_dict['pos_memory_points']

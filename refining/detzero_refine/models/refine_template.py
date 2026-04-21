@@ -1,14 +1,16 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from typing import Dict, Tuple
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 
 from detzero_refine.models.modules import GeometryTransformer
 from detzero_refine.models.modules import PositionTransformer
 from detzero_refine.models.modules import ConfidencePointnet
+from detzero_refine.structures import RefineBatchDict
 
-__all__ = {
+_MODEL_REGISTRY = {
     'GeometryTransformer': GeometryTransformer,
     'PositionTransformer': PositionTransformer,
     'ConfidencePointnet': ConfidencePointnet
@@ -32,7 +34,7 @@ class RefineTemplate(nn.Module):
     def update_global_step(self):
         self.global_step += 1
 
-    def build_networks(self):
+    def build_networks(self) -> Dict[str, object]:
         model_info_dict = {
             'module_list': [],
             'query_point_dims': self.model_cfg.get('QUERY_POINT_DIMS', 0),
@@ -40,7 +42,7 @@ class RefineTemplate(nn.Module):
         }
 
         name = self.model_cfg.REGRESSION['NAME']
-        reg = __all__[name](
+        reg = _MODEL_REGISTRY[name](
             model_cfg=self.model_cfg.REGRESSION,
             query_point_dims=model_info_dict['query_point_dims'],
             memory_point_dims=model_info_dict['memory_point_dims']
@@ -61,7 +63,7 @@ class RefineTemplate(nn.Module):
 
         return loss, tb_dict, disp_dict
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: RefineBatchDict):
         data_dict = self.reg(data_dict)
 
         if self.training:

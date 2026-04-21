@@ -1,6 +1,8 @@
 import numpy as np
 import torch
+from typing import Dict
 
+from detzero_refine.structures import ConfidenceBatchDict, GeometryBatchDict, PositionBatchDict
 
 class TargetAssigner(object):
     def __init__(self, anchor_sizes=None, mode='size', **kwargs):
@@ -15,7 +17,7 @@ class TargetAssigner(object):
         self.score_thresh = kwargs.get('score_thresh', [0.25, 0.5])
 
     def encode_torch(self, data_dict):
-        target_dict = {}
+        target_dict: Dict[str, torch.Tensor] = {}
         if self.mode =='geometry':
             gt_box = data_dict['gt_box']
             bs = gt_box.size(0)
@@ -70,7 +72,7 @@ class TargetAssigner(object):
 
         return target_dict
 
-    def decode_torch(self, preds_dict, data_dict):
+    def decode_torch(self, preds_dict: Dict[str, torch.Tensor], data_dict):
         if self.mode == 'geometry':
             bs = preds_dict["geometry_reg"].size(0)
             device = preds_dict["geometry_reg"].device
@@ -102,4 +104,3 @@ class TargetAssigner(object):
             box_preds = torch.cat([center_reg, size_reg, dir_reg], dim=-1) 
 
         return box_preds
-

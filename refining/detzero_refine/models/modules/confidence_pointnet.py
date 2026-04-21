@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
+from typing import Dict
 
 from detzero_utils.model_utils import make_fc_layers, make_conv_layers
 
 from detzero_refine.models.modules.target_assign import TargetAssigner
+from detzero_refine.structures import ConfidenceBatchDict
 
 
 class ConfidencePointnet(nn.Module):
@@ -77,7 +79,7 @@ class ConfidencePointnet(nn.Module):
             self._pool_inter = output
         return fn
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: ConfidenceBatchDict):
         points = data_dict['conf_points']
         bs, box_num, pts_num, _ = points.size()                     # B, 200, 256, 32
         points = points.permute(0, 3, 1, 2)                         # B, 32, 200, 256
@@ -97,7 +99,7 @@ class ConfidencePointnet(nn.Module):
         pool_feat = torch.cat([pool_feat, self._pool_inter], dim=1) # B, 512, 200
         output = self.regression_mlp(pool_feat)                     # B, 256, 200
 
-        preds_dict = {}
+        preds_dict: Dict[str, torch.Tensor] = {}
         for task in self.tasks:
             res = self.heads[task](output).permute(0, 2, 1)
             preds_dict[task] = torch.sigmoid(res)
@@ -148,4 +150,3 @@ class ConfidencePointnet(nn.Module):
         tb_dict["confidence_loss"] = conf_loss
 
         return conf_loss, tb_dict
-

@@ -1,19 +1,21 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from typing import Any, Dict
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 
 from .refine_template import RefineTemplate
+from detzero_refine.structures import GeometryBatchDict, GeometryPredDict
 
 
 class GeometryRefineModel(RefineTemplate):
     def __init__(self, model_cfg, dataset):
         super().__init__(model_cfg, dataset)
 
-    def post_processing(self, data_dict):
+    def post_processing(self, data_dict: GeometryBatchDict):
         post_process_cfg = self.model_cfg.POST_PROCESSING
-        recall_dict = {}
+        recall_dict: Dict[str, Any] = {}
 
         batch_box_preds = data_dict['batch_box_preds']
         if self.tta:
@@ -30,7 +32,7 @@ class GeometryRefineModel(RefineTemplate):
                 thresh_list=post_process_cfg.RECALL_THRESH_LIST
             )
 
-        pred_dicts = {
+        pred_dicts: GeometryPredDict = {
             'pred_boxes': batch_box_preds.detach().cpu().numpy(),
             'pose': data_dict['pose'],
             'geo_trajectory': data_dict['geo_trajectory'],
@@ -39,7 +41,7 @@ class GeometryRefineModel(RefineTemplate):
         return pred_dicts, recall_dict
 
     @staticmethod
-    def test_time_augment(data_dict, boxes):
+    def test_time_augment(data_dict: GeometryBatchDict, boxes):
         raise NotImplementedError
 
     def generate_recall_record(self, box_preds, recall_dict,

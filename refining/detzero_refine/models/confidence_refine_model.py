@@ -3,20 +3,22 @@ import copy
 import numpy as np
 import torch
 import torch.nn as nn
+from typing import Any, Dict
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 
 from .refine_template import RefineTemplate
+from detzero_refine.structures import ConfidenceBatchDict, ConfidencePredDict
 
 
 class ConfidenceRefineModel(RefineTemplate):
     def __init__(self, model_cfg, dataset):
         super().__init__(model_cfg, dataset)
 
-    def post_processing(self, data_dict):
+    def post_processing(self, data_dict: ConfidenceBatchDict):
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = data_dict['batch_size']
-        recall_dict = {}
+        recall_dict: Dict[str, Any] = {}
 
         if self.model_cfg.POST_PROCESSING.get('GENERATE_RECALL', True):
             recall_dict = self.generate_recall_record(
@@ -26,7 +28,7 @@ class ConfidenceRefineModel(RefineTemplate):
                 thresh_list=post_process_cfg.RECALL_THRESH_LIST
             )
 
-        pred_dicts = {
+        pred_dicts: ConfidencePredDict = {
             'pred_score': data_dict['pred_score'].cpu().numpy()
         }
 
@@ -106,4 +108,3 @@ class ConfidenceRefineModel(RefineTemplate):
         recall_dict['Track num'] += np.where(mth_tk == True)[0].shape[0]
 
         return recall_dict
-

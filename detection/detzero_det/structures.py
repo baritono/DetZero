@@ -36,7 +36,7 @@ from typing_extensions import TypedDict
 # AnnotationDict is the detection→tracking interface; it is defined in the
 # shared detzero_utils package so that the tracking module can import it
 # without taking a dependency on detzero_det.
-from detzero_utils.structures import AnnotationDict  # noqa: F401  (re-exported)
+from detzero_utils.structures import AnnotationDict, FrameId  # noqa: F401  (re-exported)
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +237,7 @@ class DataDict(DataDictBase, total=False):
         Typed as ``Any`` to avoid a self-referential TypedDict definition.
     """
 
-    frame_id: Union[str, int]
+    frame_id: FrameId
     pose: np.ndarray
     sequence_name: str
     gt_names: np.ndarray

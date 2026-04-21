@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import Any
 
 import numpy as np
 import torch
@@ -6,6 +7,7 @@ import torch
 from .geometry_refine_model import GeometryRefineModel
 from .position_refine_model import PositionRefineModel
 from .confidence_refine_model import ConfidenceRefineModel
+from detzero_refine.structures import RefineBatchDict
 
 __all__ = {
     'GeometryRefineModel': GeometryRefineModel,
@@ -20,7 +22,7 @@ def build_network(model_cfg, dataset):
     return model
 
 
-def load_data_to_gpu(batch_dict):
+def load_data_to_gpu(batch_dict: RefineBatchDict):
     for key, val in batch_dict.items():
         if not isinstance(val, np.ndarray):
             continue

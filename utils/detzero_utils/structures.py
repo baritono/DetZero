@@ -24,6 +24,16 @@ import numpy as np
 from typing_extensions import TypedDict
 
 
+FrameId = Union[str, int]
+"""Frame identifier type shared across detection, tracking, and refining."""
+
+SequenceName = str
+"""Driving sequence identifier (e.g. Waymo segment name)."""
+
+PoseMatrix = np.ndarray
+"""Ego-to-world SE(3) transform matrix, shape ``(4, 4)``, dtype float64."""
+
+
 class AnnotationDict(TypedDict, total=False):
     """Per-frame detection output, shared between the detection and tracking modules.
 
@@ -59,10 +69,13 @@ class AnnotationDict(TypedDict, total=False):
     score: np.ndarray
     boxes_lidar: np.ndarray
     sequence_name: str
-    frame_id: Union[str, int]
+    frame_id: FrameId
     pose: np.ndarray
 
 
 __all__ = [
+    "FrameId",
+    "SequenceName",
+    "PoseMatrix",
     "AnnotationDict",
 ]

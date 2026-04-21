@@ -3,21 +3,23 @@ import copy
 import numpy as np
 import torch
 import torch.nn as nn
+from typing import Any, Dict
 
 from detzero_utils import common_utils
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 
 from .refine_template import RefineTemplate
+from detzero_refine.structures import PositionBatchDict, PositionPredDict
 
 
 class PositionRefineModel(RefineTemplate):
     def __init__(self, model_cfg, dataset):
         super().__init__(model_cfg, dataset)
 
-    def post_processing(self, data_dict):
+    def post_processing(self, data_dict: PositionBatchDict):
         post_process_cfg = self.model_cfg.POST_PROCESSING
-        recall_dict = {}
-        recall_tracklet_dict = {}
+        recall_dict: Dict[str, Any] = {}
+        recall_tracklet_dict: Dict[str, Any] = {}
 
         batch_box_preds = copy.deepcopy(data_dict['batch_box_preds'])
         if self.tta:
@@ -34,7 +36,7 @@ class PositionRefineModel(RefineTemplate):
                 thresh_list=post_process_cfg.RECALL_THRESH_LIST
             )
 
-        pred_dicts = {
+        pred_dicts: PositionPredDict = {
             'pred_boxes': batch_box_preds.detach().cpu().numpy(),
             'pose': data_dict['pose'],
             'pos_init_box': data_dict['pos_init_box'].cpu().numpy(),
@@ -44,7 +46,7 @@ class PositionRefineModel(RefineTemplate):
         return pred_dicts, recall_dict
 
     @staticmethod
-    def test_time_augment(data_dict, boxes):
+    def test_time_augment(data_dict: PositionBatchDict, boxes):
         raise NotImplementedError
 
     @staticmethod
@@ -167,4 +169,3 @@ class PositionRefineModel(RefineTemplate):
         recall_dict['Track num'] += np.where(mth_tk == True)[0].shape[0]
 
         return recall_dict
-

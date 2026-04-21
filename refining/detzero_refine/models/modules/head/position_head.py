@@ -3,10 +3,12 @@ import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict
 
 from detzero_refine.models.modules.transformer import (PositionEmbeddingLearned,
                                                        FFN,
                                                        TransformerDecoderLayer)
+from detzero_refine.structures import PositionBatchDict
 
 
 class PositionHead(nn.Module):
@@ -80,7 +82,7 @@ class PositionHead(nn.Module):
             if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
                 m.momentum = self.bn_momentum
     
-    def forward(self, data_dict):
+    def forward(self, data_dict: PositionBatchDict):
         query = data_dict['query']
         memory = data_dict['memory']
         key_padding_mask = data_dict['padding_mask'].type(torch.bool)

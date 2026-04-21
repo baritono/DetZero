@@ -2,15 +2,17 @@ import copy
 from easydict import EasyDict
 from functools import partial
 from collections import defaultdict
+from typing import cast, Dict, List, Tuple, Union
 
 import torch
 import numpy as np
 
 from . import data_association, kalman_filter
+from detzero_track.structures import FrameDetectionData, TrackFrameState, TrackletData, TrackManagerModules
 
 
 class TrackManager():
-    def __init__(self, model_cfg, init_track_id=0):
+    def __init__(self, model_cfg, init_track_id: int = 0) -> None:
         self.model_cfg = model_cfg
         self.init_track_id = init_track_id
 
@@ -18,17 +20,17 @@ class TrackManager():
             'filter', 'track_age', 'data_association', 
             'track_merge', 'reverse_tracking'
         ]
-        self.modules_dicts = self.build_modules()
+        self.modules_dicts: TrackManagerModules = self.build_modules()
 
-    def build_modules(self):
-        modules_dicts = {}
+    def build_modules(self) -> TrackManagerModules:
+        modules_dicts: TrackManagerModules = {}  # type: ignore[typeddict-item]
         for module_name in self.module_topology:
             modules_dicts = getattr(self, 'build_%s' % module_name)(
                 modules_dicts=modules_dicts
             )
         return modules_dicts
 
-    def build_filter(self, modules_dicts):
+    def build_filter(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('FILTER', None) is None:
             return modules_dicts
 
@@ -39,7 +41,7 @@ class TrackManager():
         modules_dicts['filter_config'] = filter_cfg
         return modules_dicts
 
-    def build_track_age(self, modules_dicts):
+    def build_track_age(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('TRACK_AGE', None) is None:
             return modules_dicts
 
@@ -48,7 +50,7 @@ class TrackManager():
         modules_dicts['track_age_config'] = age_cfg
         return modules_dicts
 
-    def build_data_association(self, modules_dicts):
+    def build_data_association(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('DATA_ASSOCIATION', None) is None:
             return modules_dicts
 
@@ -59,7 +61,7 @@ class TrackManager():
         modules_dicts['data_association_config'] = assoc_cfg
         return modules_dicts
 
-    def build_track_merge(self, modules_dicts):
+    def build_track_merge(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('TRACK_MERGE', None) is None:
             return modules_dicts
 
@@ -73,7 +75,7 @@ class TrackManager():
         modules_dicts['track_merge_config'] = merge_cfg
         return modules_dicts
 
-    def build_reverse_tracking(self, modules_dicts):
+    def build_reverse_tracking(self, modules_dicts: TrackManagerModules) -> TrackManagerModules:
         if self.model_cfg.get('REVERSE_TRACKING', None) is None:
             return modules_dicts
 
@@ -82,10 +84,10 @@ class TrackManager():
         modules_dicts['reverse_tracking_config'] = reverse_cfg
         return modules_dicts
 
-    def forward(self, data_dict):
+    def forward(self, data_dict: Dict[str, FrameDetectionData]) -> Dict[int, TrackletData]:
         frame_list = sorted(list(data_dict.keys()), key=int)
-        tracks = list()
-        tk_result = dict()
+        tracks: list = []
+        tk_result: Dict[int, TrackletData] = {}
         tk_id_cnt = self.init_track_id
         
         for _, frm_id in enumerate(frame_list):
@@ -97,19 +99,19 @@ class TrackManager():
             # to object-level structure 
             for key, val in frm_tk_data.items():
                 if key not in tk_result.keys():
-                    tk_result[key] = defaultdict(list)
+                    tk_result[key] = defaultdict(list)  # type: ignore[assignment]
                 for sub_key, sub_val in val.items():
-                    tk_result[key][sub_key].append(sub_val)
-                tk_result[key]['pose'].append(data_dict[frm_id]['pose'])
+                    tk_result[key][sub_key].append(sub_val)  # type: ignore[literal-required,attr-defined]
+                tk_result[key]['pose'].append(data_dict[frm_id]['pose'])  # type: ignore[attr-defined]
 
         for tk_id in tk_result.keys():
-            for key in tk_result[tk_id].keys():
-                tk_result[tk_id][key] = np.array(tk_result[tk_id][key])
+            for key in tk_result[tk_id].keys():  # type: ignore[assignment]
+                tk_result[tk_id][key] = np.array(tk_result[tk_id][key])  # type: ignore[literal-required,typeddict-item]
 
         # execute the reverse-order tracking stage
         if self.modules_dicts['reverse_tracking_config'].enable:
-            frm_tracks = dict()
-            reverse_tracks = list()
+            frm_tracks: Dict[str, TrackletData] = {}
+            reverse_tracks: list = []
             keys = ['boxes_global', 'name', 'score', 'sample_idx',
                     'hit', 'num_points', 'obj_ids']
 
@@ -117,15 +119,16 @@ class TrackManager():
             for tk_id in tk_result.keys():
                 sample_idx = tk_result[tk_id]['sample_idx']
                 for i, sa_idx in enumerate(sample_idx):
-                    if sa_idx not in frm_tracks.keys():
-                        frm_tracks[sa_idx] = defaultdict(list)
-                    frm_tracks[sa_idx]['start'].append(1 if i == 0 else 0)
-                    for key in keys:
-                        frm_tracks[sa_idx][key].append(tk_result[tk_id][key][i])
+                    sa_idx_str = str(sa_idx)
+                    if sa_idx_str not in frm_tracks.keys():
+                        frm_tracks[sa_idx_str] = defaultdict(list)  # type: ignore[assignment]
+                    frm_tracks[sa_idx_str]['start'].append(1 if i == 0 else 0)  # type: ignore[attr-defined]
+                    for key in keys:  # type: ignore[assignment]
+                        frm_tracks[sa_idx_str][key].append(tk_result[tk_id][key][i])  # type: ignore[literal-required,attr-defined]
 
-            for key, items in frm_tracks.items():
+            for key, items in frm_tracks.items():  # type: ignore[assignment]
                 for k, v in items.items():
-                    items[k] = np.array(v)
+                    items[k] = np.array(v)  # type: ignore[literal-required]
 
             for idx, frm_id in enumerate(frame_list[::-1]):
                 frm_tk_data, reverse_tracks = self.reverse_tracking_module(
@@ -133,16 +136,16 @@ class TrackManager():
                 )
                 for key, val in frm_tk_data.items():
                     for sub_key, sub_val in val.items():
-                        tk_result[key][sub_key] = np.insert(
-                            tk_result[key][sub_key], 0, sub_val, axis=0
+                        tk_result[key][sub_key] = np.insert(  # type: ignore[literal-required]
+                            tk_result[key][sub_key], 0, sub_val, axis=0  # type: ignore[literal-required]
                         )
-                    tk_result[key]['pose'] = np.insert(
-                            tk_result[key]['pose'], 0, data_dict[frm_id]['pose'], axis=0
+                    tk_result[key]['pose'] = np.insert(  # type: ignore[literal-required]
+                            tk_result[key]['pose'], 0, data_dict[frm_id]['pose'], axis=0  # type: ignore[literal-required]
                         )
 
         return tk_result
 
-    def predict_tracks(self, frm_id, tracks):
+    def predict_tracks(self, frm_id: Union[str, int], tracks: list) -> FrameDetectionData:
         tk_boxes = np.zeros((len(tracks), 9), dtype=np.float32)
         tk_name = list()
         tk_score = list()
@@ -152,14 +155,20 @@ class TrackManager():
             tk_name.append(tk.name)
             tk_score.append(tk.score)
 
-        tk_data = {
+        tk_data = cast(FrameDetectionData, {
             'boxes_global': np.array(tk_boxes),
             'name': np.array(tk_name),
             'score': np.array(tk_score),
-        }
+        })
         return tk_data
 
-    def online_track_module(self, frame_id, det_data, tracks, track_id_count):
+    def online_track_module(
+        self,
+        frame_id: Union[str, int],
+        det_data: FrameDetectionData,
+        tracks: list,
+        track_id_count: int,
+    ) -> Tuple[Dict[int, TrackFrameState], list, int]:
         track_data = self.predict_tracks(frame_id, tracks)
 
         da_stage = (self.modules_dicts['data_association_config'].stage.NAME == 'one_stage')
@@ -215,13 +224,19 @@ class TrackManager():
 
         return track_output_data, tracks, track_id_count
 
-    def reverse_tracking_module(self, frame_id, det_data, trk_data, tracks):
+    def reverse_tracking_module(
+        self,
+        frame_id: Union[str, int],
+        det_data: FrameDetectionData,
+        trk_data: TrackletData,
+        tracks: list,
+    ) -> Tuple[Dict[int, TrackFrameState], list]:
         track_data = self.predict_tracks(frame_id, tracks)
         trk_mask = ~ trk_data['start'].astype(np.bool)
 
         for key in track_data.keys():
-            track_data[key] = np.concatenate((
-                track_data[key], trk_data[key][trk_mask]), axis=0)
+            track_data[key] = np.concatenate((  # type: ignore[literal-required]
+                track_data[key], trk_data[key][trk_mask]), axis=0)  # type: ignore[literal-required]
 
         da_stage = (self.modules_dicts['data_association_config'].stage.NAME == 'one_stage')
         if not da_stage and 'num_points' not in det_data.keys():

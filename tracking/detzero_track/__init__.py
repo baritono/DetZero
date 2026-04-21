@@ -2,9 +2,37 @@ import subprocess
 from pathlib import Path
 
 from .version import __version__
+from .structures import (
+    AnnotationDict,
+    FrameDetectionData,
+    TrackFrameState,
+    TrackletDataBase,
+    TrackletData,
+    GroundTruthAnnotations,
+    GroundTruthFrameData,
+    GroundTruthTrackletData,
+    LabeledTrackEntry,
+    UnlabeledTrackEntry,
+    AssignTargetResult,
+    EvalSequenceInput,
+    TrackManagerModules,
+)
 
 __all__ = [
-    '__version__'
+    '__version__',
+    'AnnotationDict',
+    'FrameDetectionData',
+    'TrackFrameState',
+    'TrackletDataBase',
+    'TrackletData',
+    'GroundTruthAnnotations',
+    'GroundTruthFrameData',
+    'GroundTruthTrackletData',
+    'LabeledTrackEntry',
+    'UnlabeledTrackEntry',
+    'AssignTargetResult',
+    'EvalSequenceInput',
+    'TrackManagerModules',
 ]
 
 

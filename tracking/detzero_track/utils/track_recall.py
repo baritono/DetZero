@@ -3,6 +3,8 @@ import pickle
 
 from functools import partial
 from collections import defaultdict
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
 from detzero_utils.common_utils import create_logger, get_log_info, multi_processing
@@ -14,6 +16,12 @@ from detzero_track.utils.track_calculation import (get_trajectory_similarity,
                                                    get_iou_mat_dict,
                                                    get_gt_id_data)
 from detzero_track.models.tracking_modules.data_association import GNN_assignment
+from detzero_track.structures import (
+    EvalSequenceInput,
+    GroundTruthFrameData,
+    GroundTruthTrackletData,
+    TrackletData,
+)
 
 
 class TrackRecall():
@@ -58,11 +66,11 @@ class TrackRecall():
         self.gt_data = gt_data
         self.pred_data = pred_data
 
-    def get_tracklet_recall(self):
+    def get_tracklet_recall(self) -> None:
         eval_single_seq = partial(self.eval_single_seq, class_names=self.class_names,
                                   difficultys=self.difficultys, iou_thresholds=self.iou_thresholds,
                                   method=self.method)
-        input_data_dict = [
+        input_data_dict: List[EvalSequenceInput] = [
             {'gt': self.gt_data[x], 'pred': self.pred_data[x]} for x in self.seq_name_list
         ]
         eval_results = multi_processing(
@@ -151,7 +159,13 @@ class TrackRecall():
 
 
     @staticmethod
-    def eval_single_seq(data_dict, class_names, difficultys, iou_thresholds, method='3d'):
+    def eval_single_seq(
+        data_dict: EvalSequenceInput,
+        class_names: List[str],
+        difficultys: List[str],
+        iou_thresholds: Dict[str, float],
+        method: str = '3d',
+    ) -> Dict[str, Any]:
         """
         Evaluate the tracking performance of a single sequence.
 
@@ -176,11 +190,11 @@ class TrackRecall():
             gt_data, dict_frame_pred_data, class_names, distinguish_class=True, iou=method)
 
         gt_keys = ['gt_boxes_global', 'name', 'obj_ids', 'difficulty', 'num_points_in_gt']
-        gt_id_data = get_gt_id_data(gt_data, gt_keys, class_names)
+        gt_id_data: Dict[int, GroundTruthTrackletData] = get_gt_id_data(gt_data, gt_keys, class_names)
 
         for item in frame_pred_data:
             for iou_idx, obj_id in enumerate(item['obj_ids']):
-                pred_data[obj_id]['iou_idx'].append(iou_idx)
+                pred_data[obj_id]['iou_idx'].append(iou_idx)  # type: ignore[attr-defined]
 
         gt_ids = list(gt_id_data.keys())
         pred_ids = list(pred_data.keys())
@@ -190,13 +204,13 @@ class TrackRecall():
         for gt_id_idx, gt_id in enumerate(gt_ids):
             gt_info = gt_id_data[gt_id]
             for key in gt_info.keys():
-                gt_info[key] = np.array(gt_info[key])
+                gt_info[key] = np.array(gt_info[key])  # type: ignore[literal-required]
             for pred_id_idx, pred_id in enumerate(pred_ids):
                 pred_info = pred_data[pred_id]
-                pred_info['iou_idx'] = np.array(pred_info['iou_idx'])
+                pred_info['iou_idx'] = np.array(pred_info['iou_idx'])  # type: ignore[typeddict-item]
 
                 similarity, match_count, same_frame_count = get_trajectory_similarity(
-                    gt_info, pred_info, iou_mat_dict, iou_thresholds, 0.
+                    gt_info, pred_info, iou_mat_dict, iou_thresholds, 0.  # type: ignore[arg-type]
                 )
                 traj_similar_mat[gt_id_idx, pred_id_idx] = similarity
                 traj_same_count_mat[gt_id_idx, pred_id_idx] = same_frame_count
@@ -207,7 +221,7 @@ class TrackRecall():
         total_gt_traj_nums = len(gt_ids)
         total_match_traj_nums = len(match)
 
-        eval_result = defaultdict(dict)
+        eval_result: Any = defaultdict(dict)
         for difficulty in difficultys:
             for class_n in class_names:
                 eval_result[difficulty][class_n] = defaultdict(list)

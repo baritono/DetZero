@@ -1,12 +1,20 @@
 from collections import defaultdict
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
 
 from detzero_track.models.tracking_modules.data_association import IoUBEV_dis_mat, IoU3D_dis_mat
+from detzero_track.structures import FrameDetectionData, GroundTruthFrameData, GroundTruthTrackletData, TrackletData
 
 
-def get_iou_mat_dict(gt_data, pred_data, class_names, distinguish_class=True, iou='bev'):
+def get_iou_mat_dict(
+    gt_data: Dict[str, GroundTruthFrameData],
+    pred_data: Dict[str, FrameDetectionData],
+    class_names: List[str],
+    distinguish_class: bool = True,
+    iou: str = 'bev',
+) -> Dict[str, np.ndarray]:
     """
     calculate the IoU matrix for whole sequence
     Args:
@@ -52,7 +60,11 @@ def get_iou_mat_dict(gt_data, pred_data, class_names, distinguish_class=True, io
     return iou_mat_dict
 
 
-def get_gt_id_data(gt_data, gt_keys, class_names):
+def get_gt_id_data(
+    gt_data: Dict[str, GroundTruthFrameData],
+    gt_keys: List[str],
+    class_names: List[str],
+) -> Dict[int, GroundTruthTrackletData]:
     """
     convert gt data from index by frame to index by obj_id 
     Args:
@@ -62,7 +74,7 @@ def get_gt_id_data(gt_data, gt_keys, class_names):
     Returns:
         gt_id_data: output new gt data index by obj_id
     """
-    gt_id_data = dict()
+    gt_id_data: Dict[int, Any] = {}
     for sample_idx, item in gt_data.items():
         annos = item['annos']
         name_len = len(gt_data[sample_idx]['annos']['name'])
@@ -74,11 +86,11 @@ def get_gt_id_data(gt_data, gt_keys, class_names):
             if obj_id not in gt_id_data.keys():
                 gt_id_data[obj_id] = defaultdict(list)
             for key in gt_keys:
-                gt_id_data[obj_id][key].append(annos[key][name_mask][idx])
+                gt_id_data[obj_id][key].append(annos[key][name_mask][idx])  # type: ignore[literal-required]
             gt_id_data[obj_id]['sample_idx'].append(str(sample_idx))
             gt_id_data[obj_id]['iou_idx'].append(idx)
 
-    return gt_id_data
+    return gt_id_data  # type: ignore[return-value]
 
 
 def get_trajectory_similarity(track_a, track_b, iou_mat_dict,

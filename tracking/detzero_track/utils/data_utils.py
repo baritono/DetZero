@@ -100,7 +100,7 @@ def frames_to_tracklets(data_dict: Dict[str, Any], class_names: List[str] = ['Ve
         name_len = len(frames_data[sample_idx]['name'])
         if name_len == 0: continue
 
-        name_mask = np.zeros_like(frames_data[sample_idx]['name'], dtype=np.bool)
+        name_mask = np.zeros_like(frames_data[sample_idx]['name'], dtype=bool)
         for class_n in class_names:
             name_mask = name_mask | (frames_data[sample_idx]['name'] == class_n)
 

@@ -1,5 +1,5 @@
-numpy<=1.19.5
-numba==0.48.0
+numpy==1.23.5
+numba>=0.59,<0.60
 tensorboardX
 easydict
 pyyaml

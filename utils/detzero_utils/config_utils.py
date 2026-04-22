@@ -61,7 +61,7 @@ def merge_new_config(config, new_config):
         with open(new_config['_BASE_CONFIG_'], 'r') as f:
             try:
                 yaml_config = yaml.load(f, Loader=yaml.FullLoader)
-            except:
+            except AttributeError:
                 yaml_config = yaml.load(f)
         config.update(EasyDict(yaml_config))
 
@@ -80,7 +80,7 @@ def cfg_from_yaml_file(cfg_file, config):
     with open(cfg_file, 'r') as f:
         try:
             new_config = yaml.load(f, Loader=yaml.FullLoader)
-        except:
+        except AttributeError:
             new_config = yaml.load(f)
 
         merge_new_config(config=config, new_config=new_config)

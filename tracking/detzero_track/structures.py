@@ -107,29 +107,6 @@ class TrackFrameState(TypedDict):
     Produced by :meth:`BaseKalmanFilter.info` and accumulated in
     :meth:`TrackManager.online_track_module` to build the full
     :class:`TrackletData` history.
-
-    Fields
-    ------
-    boxes_global : np.ndarray, shape (9,), dtype float32
-        Track state as a bounding box in the global frame:
-        ``[x, y, z, dx, dy, dz, heading, vx, vy]``.  The last two entries
-        are the velocity estimated by the Kalman filter.
-    name : str
-        Class name of the tracked object (e.g. ``'Vehicle'``).
-    score : float
-        Latest detection confidence score associated with this track.
-    sample_idx : int or str
-        Frame identifier at which this state was recorded.
-    hit : int
-        Hit status for this time-step:
-        ``0`` – the track was not matched (predicted/coasted frame),
-        ``1`` – matched by first-stage association,
-        ``2`` – matched by second-stage (low-confidence) association.
-    num_points : int or float
-        Number of LiDAR points inside the matched detection box at this
-        time-step.  ``0`` when the track was not matched.
-    obj_ids : int
-        Unique integer track identifier assigned at track birth.
     """
 
     boxes_global: np.ndarray
@@ -267,23 +244,6 @@ class GroundTruthAnnotations(TypedDict, total=False):
 
     Stored under the ``'annos'`` key of :class:`GroundTruthFrameData`.
     Populated from the Waymo ``waymo_infos_*.pkl`` files.
-
-    Fields
-    ------
-    name : np.ndarray, shape (N,), dtype str
-        Class name for each annotated object (e.g. ``'Vehicle'``).
-    obj_ids : np.ndarray, shape (N,), dtype int-like
-        Unique per-sequence object identifiers assigned by the dataset.
-    gt_boxes_lidar : np.ndarray, shape (N, 7+), dtype float32
-        Ground-truth bounding boxes in the LiDAR frame:
-        ``[x, y, z, dx, dy, dz, heading, ...]``.
-    gt_boxes_global : np.ndarray, shape (N, 7+), dtype float32
-        Ground-truth bounding boxes transformed into the world frame using
-        the frame's ``pose``.
-    difficulty : np.ndarray, shape (N,), dtype int32
-        Per-object difficulty label (``0`` = unknown, ``1`` = L1, ``2`` = L2).
-    num_points_in_gt : np.ndarray, shape (N,), dtype int32
-        Number of LiDAR points inside each ground-truth box.
     """
 
     name: np.ndarray
@@ -314,19 +274,6 @@ class GroundTruthFrameData(TypedDict, total=False):
     Used by :func:`assign_track_target`, :class:`TrackRecall`, and
     :func:`get_iou_mat_dict` to evaluate tracking quality and assign GT
     labels to predicted tracklets.
-
-    Fields
-    ------
-    annos : GroundTruthAnnotations
-        Nested annotations sub-dict; see :class:`GroundTruthAnnotations`.
-    sequence_name : str
-        Identifier of the driving sequence.
-    frame_id : int or str
-        Frame identifier within the sequence.
-    sample_idx : int or str
-        Alias for ``frame_id`` (some annotation files use this key).
-    pose : np.ndarray, shape (4, 4), dtype float64
-        Ego-to-world SE(3) transform for this frame.
     """
 
     annos: GroundTruthAnnotations
@@ -425,27 +372,6 @@ class GroundTruthTrackletData(TypedDict, total=False):
     the state seen by all downstream consumers.  All fields are optional
     because the exact set present depends on the ``gt_keys`` argument passed
     to :func:`get_gt_id_data`.
-
-    Fields
-    ------
-    sample_idx : np.ndarray, shape (T,), dtype str
-        Frame IDs of every appearance of this GT object.
-    iou_idx : np.ndarray, shape (T,), dtype int
-        Row indices into the per-frame IoU matrix built by
-        :func:`get_iou_mat_dict`.  Temporary field; popped after use.
-    name : np.ndarray, shape (T,), dtype str
-        Class name for each appearance (e.g. ``'Vehicle'``).
-    obj_ids : np.ndarray, shape (T,)
-        Per-appearance GT object identifiers (all equal for one GT track).
-    gt_boxes_global : np.ndarray, shape (T, 7+), dtype float32
-        GT bounding boxes in the world (global) coordinate frame.
-    gt_boxes_lidar : np.ndarray, shape (T, 7+), dtype float32
-        GT bounding boxes in the LiDAR (ego-vehicle) coordinate frame.
-    difficulty : np.ndarray, shape (T,), dtype int32
-        Per-appearance difficulty label; ``0`` = unknown, ``1`` = L1,
-        ``2`` = L2.
-    num_points_in_gt : np.ndarray, shape (T,), dtype int32
-        Number of LiDAR points inside the GT box at each appearance.
     """
 
     sample_idx: np.ndarray
@@ -485,30 +411,6 @@ class TrackManagerModules(TypedDict, total=False):
     Built incrementally by the ``build_*`` methods and stored as
     ``self.modules_dicts``.  Each field holds either a constructed module
     object, a callable, or an :class:`easydict.EasyDict` config snapshot.
-
-    Fields
-    ------
-    filter_module : callable
-        Partially-applied Kalman-filter constructor; called with ``bbox``,
-        ``name``, ``score``, ``frame_id``, ``track_id``, ``num_points`` to
-        create a new track.
-    filter_config : Any (EasyDict)
-        Lower-cased configuration snapshot for the filter
-        (e.g. ``name``, ``x_dim``, ``z_dim``, ``delta_t`` …).
-    track_age_config : Any (EasyDict)
-        Lower-cased configuration for birth/death thresholds
-        (``birth_age``, ``death_age``).
-    data_association_module : associate_det_to_tracks
-        Instantiated data-association object.
-    data_association_config : Any (EasyDict)
-        Lower-cased configuration snapshot for data association.
-    track_merge_config : Any (EasyDict)
-        Lower-cased configuration for track merging; includes
-        ``enable`` (bool) and ``class_threshold`` (dict mapping class
-        name to overlap threshold).
-    reverse_tracking_config : Any (EasyDict)
-        Lower-cased configuration for the reverse-tracking pass;
-        includes ``enable`` (bool).
     """
 
     filter_module: Callable[..., Any]

@@ -44,25 +44,6 @@ class AnnotationDict(TypedDict, total=False):
 
     All fields are optional at the TypedDict level because the dict is built
     incrementally; callers should ensure the fields they need are present.
-
-    Fields
-    ------
-    name : np.ndarray, shape (N,), dtype str
-        Predicted class name for each detection (e.g. ``'Vehicle'``,
-        ``'Pedestrian'``, ``'Cyclist'``).
-    score : np.ndarray, shape (N,), dtype float32
-        Detection confidence score in ``[0, 1]`` for each object.
-    boxes_lidar : np.ndarray, shape (N, 7) or (N, 9), dtype float32
-        Predicted 3-D bounding boxes in the ego-vehicle (LiDAR) coordinate
-        frame: ``[x, y, z, dx, dy, dz, heading]`` (7 columns), optionally
-        extended with velocity ``[vx, vy]`` (9 columns).
-    sequence_name : str
-        Identifier of the driving sequence this frame belongs to
-        (e.g. the Waymo segment name).
-    frame_id : int or str
-        Unique identifier for the LiDAR frame within its sequence.
-    pose : np.ndarray, shape (4, 4), dtype float64
-        Ego-to-world SE(3) transform matrix for this frame.
     """
 
     name: np.ndarray

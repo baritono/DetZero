@@ -232,7 +232,7 @@ class TrackManager():
         tracks: list,
     ) -> Tuple[Dict[int, TrackFrameState], list]:
         track_data = self.predict_tracks(frame_id, tracks)
-        trk_mask = ~ trk_data['start'].astype(np.bool)
+        trk_mask = ~ trk_data['start'].astype(bool)
 
         for key in track_data.keys():
             track_data[key] = np.concatenate((  # type: ignore[literal-required]
@@ -276,7 +276,7 @@ class TrackManager():
 
     def overlap_track_merge(self, tracks):
         tk_boxes = np.zeros((len(tracks), 7), dtype=np.float32)
-        tk_age = np.zeros(len(tracks), dtype=np.int)
+        tk_age = np.zeros(len(tracks), dtype=int)
         tk_area = np.zeros(len(tracks), dtype=np.float32)
         tk_name = list()
 

@@ -65,12 +65,12 @@ class AnnotationDict(TypedDict, total=False):
         Ego-to-world SE(3) transform matrix for this frame.
     """
 
-    name: np.ndarray         # shape: (N,) – predicted class name per detection (e.g. 'Vehicle', 'Pedestrian', 'Cyclist'); dtype str/object
-    score: np.ndarray        # shape: (N,) – detection confidence score ∈ [0, 1] for each object; dtype float32
-    boxes_lidar: np.ndarray  # shape: (N, 7) or (N, 9) – predicted 3-D boxes [x, y, z, dx, dy, dz, heading] in metres/radians; optionally extended with velocity [vx, vy] in m/s; LiDAR/ego-vehicle frame; dtype float32
+    name: np.ndarray
+    score: np.ndarray
+    boxes_lidar: np.ndarray
     sequence_name: str
     frame_id: FrameId
-    pose: np.ndarray         # shape: (4, 4) – ego-to-world SE(3) transform for this frame; dtype float64
+    pose: np.ndarray
 
 
 __all__ = [

@@ -420,14 +420,14 @@ class GroundTruthTrackletData(TypedDict, total=False):
         Number of LiDAR points inside the GT box at each appearance.
     """
 
-    sample_idx: np.ndarray
-    iou_idx: np.ndarray
-    name: np.ndarray
-    obj_ids: np.ndarray
-    gt_boxes_global: np.ndarray
-    gt_boxes_lidar: np.ndarray
-    difficulty: np.ndarray
-    num_points_in_gt: np.ndarray
+    sample_idx: np.ndarray  # shape: (T,) – frame IDs of every appearance of this GT object; dtype str; T = number of frames this GT object appears in
+    iou_idx: np.ndarray  # shape: (T,) – row indices into the per-frame IoU matrix built by get_iou_mat_dict; dtype int; temporary field, popped after use
+    name: np.ndarray  # shape: (T,) – class name for each appearance (e.g. 'Vehicle'); dtype object (str)
+    obj_ids: np.ndarray  # shape: (T,) – GT object identifier for each appearance; all elements equal for a single GT track; dtype int-like
+    gt_boxes_global: np.ndarray  # shape: (T, 7+) – GT bounding boxes in world/global frame; columns: [x, y, z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π]
+    gt_boxes_lidar: np.ndarray  # shape: (T, 7+) – GT bounding boxes in ego-vehicle/LiDAR frame; columns: [x, y, z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π]
+    difficulty: np.ndarray  # shape: (T,) – per-appearance difficulty label; dtype int32; 0 = unknown, 1 = L1 (>5 LiDAR pts), 2 = L2 (≤5 LiDAR pts)
+    num_points_in_gt: np.ndarray  # shape: (T,) – number of LiDAR points inside the GT box at each appearance; dtype int32
 
 
 # ---------------------------------------------------------------------------

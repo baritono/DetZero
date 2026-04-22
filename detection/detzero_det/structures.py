@@ -542,11 +542,11 @@ class CenterHeadTargetDict(TypedDict):
         Reserved for future use; currently populated as an empty list.
     """
 
-    heatmaps: List[torch.Tensor]
-    target_boxes: List[torch.Tensor]
-    inds: List[torch.Tensor]
-    masks: List[torch.Tensor]
-    heatmap_masks: List[torch.Tensor]
+    heatmaps: List[torch.Tensor]       # list length = num_heads; each shape: (B, num_classes_i, H, W) – Gaussian heatmap targets ∈ [0, 1]; H×W is the BEV feature-map grid; LiDAR/ego-vehicle frame; dtype float32
+    target_boxes: List[torch.Tensor]   # list length = num_heads; each shape: (B, max_objs, code_size) – encoded box regression targets at Gaussian peaks; code_size = 8: [delta_x, delta_y, z, log(dx), log(dy), log(dz), cos(θ), sin(θ)] + optional vel; dtype float32
+    inds: List[torch.Tensor]           # list length = num_heads; each shape: (B, max_objs) – flattened H×W grid index of the voxel assigned to each object; dtype int64
+    masks: List[torch.Tensor]          # list length = num_heads; each shape: (B, max_objs) – binary validity mask; 1 for real objects, 0 for padding; dtype int64
+    heatmap_masks: List[torch.Tensor]  # list length = num_heads; reserved for future use; currently populated as empty list
 
 
 # ---------------------------------------------------------------------------
@@ -582,13 +582,13 @@ class ProposalTargetDict(TypedDict):
         values in (0, 1) for IoU-based soft labels, ``-1`` to ignore.
     """
 
-    rois: torch.Tensor
-    gt_of_rois: torch.Tensor
-    gt_iou_of_rois: torch.Tensor
-    roi_scores: torch.Tensor
-    roi_labels: torch.Tensor
-    reg_valid_mask: torch.Tensor
-    rcnn_cls_labels: torch.Tensor
+    rois: torch.Tensor            # shape: (B, M, 7+C) – sampled ROIs; M = ROI_PER_IMAGE; [x, y, z, dx, dy, dz, heading, ...]; x/y/z in metres, heading in radians; LiDAR/ego-vehicle frame; dtype float32
+    gt_of_rois: torch.Tensor      # shape: (B, M, 7+C) – GT box in canonical frame of each ROI (translated to ROI centre, rotated to ROI heading); distances in metres, heading in radians; dtype float32
+    gt_iou_of_rois: torch.Tensor  # shape: (B, M) – 3-D IoU ∈ [0, 1] between each sampled ROI and its best-matching GT box; dtype float32
+    roi_scores: torch.Tensor      # shape: (B, M) – confidence scores ∈ [0, 1] from the proposal network for each sampled ROI; dtype float32
+    roi_labels: torch.Tensor      # shape: (B, M) – 1-indexed class labels for each sampled ROI; dtype int64
+    reg_valid_mask: torch.Tensor  # shape: (B, M) – binary mask; 1 when ROI IoU ≥ REG_FG_THRESH (valid regression target), 0 otherwise; dtype int64
+    rcnn_cls_labels: torch.Tensor  # shape: (B, M) – classification targets; 1 = foreground, 0 = background, (0,1) = IoU-based soft label, -1 = ignore; dtype float32 or int64
 
 
 class RoIHeadForwardDictBase(ProposalTargetDict):
@@ -618,10 +618,10 @@ class RoIHeadForwardDict(RoIHeadForwardDictBase, total=False):
         Per-ROI feature vectors carried through ROI sampling (CP variant).
     """
 
-    gt_of_rois_src: torch.Tensor
-    rcnn_cls: torch.Tensor
-    rcnn_reg: torch.Tensor
-    roi_features: torch.Tensor
+    gt_of_rois_src: torch.Tensor  # shape: (B, M, 7+C) – original (pre-canonical-transform) GT boxes for each sampled ROI; used for corner-loss; LiDAR/ego-vehicle frame; dtype float32
+    rcnn_cls: torch.Tensor        # shape: (B*M, num_class) or (B*M, 1) – ROI head classification logits before sigmoid/softmax; num_class or 1 for binary; dtype float32
+    rcnn_reg: torch.Tensor        # shape: (B*M, code_size) – ROI head box regression predictions in canonical ROI frame; code_size = 7 ([dx, dy, dz, log_l, log_w, log_h, dθ]); dtype float32
+    roi_features: torch.Tensor    # shape: (B, M, C_feat) – per-ROI feature vectors carried through ROI sampling (CP variant only); C_feat = feature dimension; dtype float32
 
 
 # ---------------------------------------------------------------------------
@@ -638,15 +638,15 @@ class ModelInfoDictBase(TypedDict):
     """Number of point-wise feature channels flowing into/out of the current
     module under construction; updated after each module is built."""
 
-    grid_size: np.ndarray
+    grid_size: np.ndarray  # shape: (3,) – voxel-grid extent [Nx, Ny, Nz] (number of voxels per axis); derived from point_cloud_range / voxel_size; dtype int64
     """Voxel-grid dimensions ``[Nx, Ny, Nz]`` (int64), derived from the
     point-cloud range and voxel size."""
 
-    point_cloud_range: np.ndarray
+    point_cloud_range: np.ndarray  # shape: (6,) – axis-aligned detection volume [x_min, y_min, z_min, x_max, y_max, z_max] in metres; LiDAR/ego-vehicle frame; dtype float32
     """Axis-aligned bounding box of the detection volume:
     ``[x_min, y_min, z_min, x_max, y_max, z_max]``, dtype float32."""
 
-    voxel_size: np.ndarray
+    voxel_size: np.ndarray  # shape: (3,) – physical size of one voxel [vx, vy, vz] in metres along x/y/z; dtype float32
     """Physical size of one voxel ``[vx, vy, vz]`` in metres, dtype float32."""
 
 

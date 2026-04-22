@@ -77,11 +77,11 @@ class FrameDetectionData(AnnotationDict, total=False):
         Optional UNIX timestamp (seconds) for the frame.
     """
 
-    boxes_global: np.ndarray
-    num_points: np.ndarray
+    boxes_global: np.ndarray  # shape: (N, 7) or (N, 9) – bounding boxes in world/global frame; columns: [x, y, z, dx, dy, dz, heading] (meters for x/y/z/dx/dy/dz, radians for heading, in (-π, π]); optional last 2 cols: [vx, vy] in m/s
+    num_points: np.ndarray  # shape: (N,) – number of LiDAR points inside each detection box; dtype int32; 0 for unmatched tracks
     sample_idx: FrameId
     timestamp: float
-    obj_ids: np.ndarray
+    obj_ids: np.ndarray  # shape: (N,) – sorted track/object IDs for objects active in this frame; dtype int-like
     """Per-frame object/track IDs, shape ``(N,)``, dtype int-like.
 
     Present after the frame dict is built by :func:`tracklets_to_frames`,
@@ -127,7 +127,7 @@ class TrackFrameState(TypedDict):
         Unique integer track identifier assigned at track birth.
     """
 
-    boxes_global: np.ndarray
+    boxes_global: np.ndarray  # shape: (9,) – single-frame track state in world/global frame: [x, y, z, dx, dy, dz, heading, vx, vy]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π], vx/vy in m/s (Kalman-filter velocity estimate)
     name: str
     score: float
     sample_idx: FrameId
@@ -147,35 +147,35 @@ class TrackletDataBase(TypedDict):
     in the tracklet's lifespan).
     """
 
-    boxes_global: np.ndarray
+    boxes_global: np.ndarray  # shape: (T, 9) – bounding-box history in world/global frame; T = number of frames in tracklet lifespan; columns: [x, y, z, dx, dy, dz, heading, vx, vy]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π], vx/vy in m/s
     """Bounding-box states over time, shape ``(T, 9)``, dtype float32.
 
     Each row is ``[x, y, z, dx, dy, dz, heading, vx, vy]`` in the global
     coordinate frame.
     """
 
-    name: np.ndarray
+    name: np.ndarray  # shape: (T,) – class name at each time-step (e.g. 'Vehicle', 'Pedestrian', 'Cyclist'); dtype object (str)
     """Class name at each time-step, shape ``(T,)``, dtype str (object).
 
     Typically constant across the track's lifetime, but may change if the
     detector's class prediction flips.
     """
 
-    score: np.ndarray
+    score: np.ndarray  # shape: (T,) – detection confidence score in [0, 1] at each time-step; dtype float32; coasted frames repeat the most recent matched score
     """Detection confidence at each time-step, shape ``(T,)``, dtype float32.
 
     For coasted frames (``hit == 0``) this is the score from the most recent
     matched detection.
     """
 
-    sample_idx: np.ndarray
+    sample_idx: np.ndarray  # shape: (T,) – frame identifier for each time-step (matches FrameDetectionData.frame_id); dtype int-like
     """Frame identifiers for each time-step, shape ``(T,)``, dtype int-like.
 
     Stores the ``frame_id`` / ``sample_idx`` value from
     :class:`FrameDetectionData` for each frame the track was active.
     """
 
-    hit: np.ndarray
+    hit: np.ndarray  # shape: (T,) – association status at each time-step; dtype int; 0 = coasted, 1 = first-stage match, 2 = second-stage (low-confidence) match
     """Hit flags per time-step, shape ``(T,)``, dtype int.
 
     ``0`` = coasted (no matched detection),
@@ -183,14 +183,14 @@ class TrackletDataBase(TypedDict):
     ``2`` = matched (second-stage / low-confidence).
     """
 
-    num_points: np.ndarray
+    num_points: np.ndarray  # shape: (T,) – LiDAR point count inside matched detection box at each time-step; dtype int; 0 for coasted frames
     """LiDAR point counts per time-step, shape ``(T,)``, dtype int.
 
     Number of points inside the matched detection box; ``0`` for coasted
     frames.
     """
 
-    obj_ids: np.ndarray
+    obj_ids: np.ndarray  # shape: (T,) – unique integer track ID repeated for each time-step; dtype int; all elements equal to the track's birth-time track_id
     """Track identifiers per time-step, shape ``(T,)``, dtype int.
 
     All elements are equal to the track's birth-time ``track_id``.
@@ -198,7 +198,7 @@ class TrackletDataBase(TypedDict):
     and per-frame representations.
     """
 
-    pose: np.ndarray
+    pose: np.ndarray  # shape: (T, 4, 4) – ego-to-world SE(3) homogeneous transform at each time-step; dtype float64; copied from FrameDetectionData.pose for each active frame
     """Ego-to-world SE(3) transforms per time-step, shape ``(T, 4, 4)``,
     dtype float64.
 
@@ -232,10 +232,10 @@ class TrackletData(TrackletDataBase, total=False):
     """
 
     state: str
-    iou: np.ndarray
+    iou: np.ndarray  # shape: (T,) – per-frame IoU between this track and its assigned GT object; dtype float32; set by assign_track_target
     iou_idx: List[int]
-    start: np.ndarray
-    boxes_lidar: np.ndarray
+    start: np.ndarray  # shape: (T,) – binary flag; 1 on the first frame of the track's life, 0 otherwise; dtype int; used during reverse-tracking pass
+    boxes_lidar: np.ndarray  # shape: (T, 7) – bounding-box history in ego-vehicle/LiDAR frame; columns: [x, y, z, dx, dy, dz, heading]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π]; optional field
     """Per-time-step bounding boxes in the LiDAR (ego-vehicle) frame,
     shape ``(T, 7)``, dtype float32: ``[x, y, z, dx, dy, dz, heading]``.
 
@@ -274,12 +274,12 @@ class GroundTruthAnnotations(TypedDict, total=False):
         Number of LiDAR points inside each ground-truth box.
     """
 
-    name: np.ndarray
-    obj_ids: np.ndarray
-    gt_boxes_lidar: np.ndarray
-    gt_boxes_global: np.ndarray
-    difficulty: np.ndarray
-    num_points_in_gt: np.ndarray
+    name: np.ndarray  # shape: (N,) – class name for each annotated object (e.g. 'Vehicle', 'Pedestrian', 'Cyclist'); dtype object (str); N = number of GT objects in this frame
+    obj_ids: np.ndarray  # shape: (N,) – unique per-sequence object identifiers assigned by the Waymo dataset; dtype int-like
+    gt_boxes_lidar: np.ndarray  # shape: (N, 7+) – GT bounding boxes in ego-vehicle/LiDAR frame; columns: [x, y, z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π]
+    gt_boxes_global: np.ndarray  # shape: (N, 7+) – GT bounding boxes in world/global frame (transformed via frame pose); columns: [x, y, z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π]
+    difficulty: np.ndarray  # shape: (N,) – per-object difficulty label; dtype int32; 0 = unknown, 1 = L1 (>5 LiDAR points), 2 = L2 (≤5 LiDAR points)
+    num_points_in_gt: np.ndarray  # shape: (N,) – number of LiDAR points inside each GT box; dtype int32
 
 
 class GroundTruthFrameData(TypedDict, total=False):
@@ -307,7 +307,7 @@ class GroundTruthFrameData(TypedDict, total=False):
     sequence_name: str
     frame_id: FrameId
     sample_idx: FrameId
-    pose: np.ndarray
+    pose: np.ndarray  # shape: (4, 4) – ego-to-world SE(3) homogeneous transform for this frame; dtype float64
 
 
 # ---------------------------------------------------------------------------

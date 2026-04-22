@@ -60,6 +60,17 @@ We suggest to follow the instructions of [torch_scatter](https://github.com/rust
   cd DetZero && pip install -r requirements.txt
 ```
 
+> Note: the visualization tools under `daemon/visualizer.py` and
+> `utils/detzero_utils/visualize_utils` additionally require
+> [`open3d`](https://pypi.org/project/open3d/). `open3d` is **not** installed
+> by `requirements.txt` because it pulls in a newer `numpy` /
+> `typing-extensions` that conflict with `waymo-open-dataset-tf-2-5-0`. If you
+> need the visualizer, install it separately (ideally into a dedicated
+> environment) with:
+> ```shell
+>   pip install open3d
+> ```
+
 **h. Compile other libraries.**
 ```shell
   cd DetZero/utils && python setup.py develop

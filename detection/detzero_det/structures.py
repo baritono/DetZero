@@ -50,23 +50,20 @@ class AugMatrixInv(TypedDict, total=False):
     augmented coordinates recovers the original coordinates.  Only the keys
     corresponding to augmentation operations that were actually applied are
     present.
-
-    Fields
-    ------
-    flip : np.ndarray, shape (3, 3), dtype float32
-        Inverse of the flip transformation (diagonal matrix with ±1 entries).
-    rotate : np.ndarray, shape (3, 3), dtype float32
-        Inverse of the global yaw-rotation matrix (transpose of the rotation).
-    rescale : np.ndarray, shape (3, 3), dtype float32
-        Inverse of the uniform scale transform (diagonal with ``1/s`` entries).
-    translate : np.ndarray, shape (3, 3), dtype float32
-        Inverse of the global translation (negated offset stored as matrix).
     """
 
-    flip: np.ndarray      # shape: (3, 3) – diagonal matrix with ±1 entries; maps augmented coords back to original; ego-vehicle frame, dtype float32
-    rotate: np.ndarray    # shape: (3, 3) – inverse yaw-rotation (i.e. transpose of the applied rotation matrix); ego-vehicle frame, dtype float32
-    rescale: np.ndarray   # shape: (3, 3) – diagonal matrix with entries 1/s; undoes the uniform scale augmentation; ego-vehicle frame, dtype float32
-    translate: np.ndarray  # shape: (3, 3) – encodes negated translation offset; undoes the global translation augmentation; ego-vehicle frame, dtype float32
+    flip: np.ndarray
+    """shape: (3, 3) – diagonal matrix with ±1 entries; maps augmented coords back to
+    original; ego-vehicle frame, dtype float32"""
+    rotate: np.ndarray
+    """shape: (3, 3) – inverse yaw-rotation (i.e. transpose of the applied rotation
+    matrix); ego-vehicle frame, dtype float32"""
+    rescale: np.ndarray
+    """shape: (3, 3) – diagonal matrix with entries 1/s; undoes the uniform scale
+    augmentation; ego-vehicle frame, dtype float32"""
+    translate: np.ndarray
+    """shape: (3, 3) – encodes negated translation offset; undoes the global
+    translation augmentation; ego-vehicle frame, dtype float32"""
 
 
 class MultiScale3DFeatures(TypedDict, total=False):
@@ -75,21 +72,16 @@ class MultiScale3DFeatures(TypedDict, total=False):
     Keys correspond to the stride-1 (``x_conv1``) through stride-8
     (``x_conv4``) outputs of ``VoxelBackBone8x`` / ``VoxelResBackBone8x``.
     Each value is a ``spconv.SparseConvTensor``.
-
-    Fields
-    ------
-    x_conv1 : SparseConvTensor, spatial stride 1
-        Highest-resolution sparse feature map.
-    x_conv2 : SparseConvTensor, spatial stride 2
-    x_conv3 : SparseConvTensor, spatial stride 4
-    x_conv4 : SparseConvTensor, spatial stride 8
-        Lowest-resolution sparse feature map.
     """
 
-    x_conv1: Any  # spconv.SparseConvTensor
+    x_conv1: Any
+    """spconv.SparseConvTensor (stride-1 highest-resolution sparse feature map)."""
     x_conv2: Any
+    """spconv.SparseConvTensor (stride-2 sparse feature map)."""
     x_conv3: Any
+    """spconv.SparseConvTensor (stride-4 sparse feature map)."""
     x_conv4: Any
+    """spconv.SparseConvTensor (stride-8 lowest-resolution sparse feature map)."""
 
 
 class MultiScale3DStrides(TypedDict, total=False):
@@ -118,23 +110,20 @@ class PointFeaturesDict(TypedDict, total=False):
 
     Used by :class:`PDVHead` and :class:`VoxelCenterHead` to pass per-voxel /
     per-point features to the ROI grid-pooling layers.
-
-    Fields
-    ------
-    x_conv1 : torch.Tensor, shape (N1, C1), dtype float32
-        Point features from the stride-1 3-D backbone layer.
-    x_conv2 : torch.Tensor, shape (N2, C2), dtype float32
-        Point features from the stride-2 layer.
-    x_conv3 : torch.Tensor, shape (N3, C3), dtype float32
-        Point features from the stride-4 layer.
-    x_conv4 : torch.Tensor, shape (N4, C4), dtype float32
-        Point features from the stride-8 layer.
     """
 
-    x_conv1: torch.Tensor  # shape: (N1, C1) – N1 active voxels at stride-1; C1 feature channels; LiDAR/ego-vehicle frame, dtype float32
-    x_conv2: torch.Tensor  # shape: (N2, C2) – N2 active voxels at stride-2; C2 feature channels; LiDAR/ego-vehicle frame, dtype float32
-    x_conv3: torch.Tensor  # shape: (N3, C3) – N3 active voxels at stride-4; C3 feature channels; LiDAR/ego-vehicle frame, dtype float32
-    x_conv4: torch.Tensor  # shape: (N4, C4) – N4 active voxels at stride-8; C4 feature channels; LiDAR/ego-vehicle frame, dtype float32
+    x_conv1: torch.Tensor
+    """shape: (N1, C1) – N1 active voxels at stride-1; C1 feature channels;
+    LiDAR/ego-vehicle frame, dtype float32"""
+    x_conv2: torch.Tensor
+    """shape: (N2, C2) – N2 active voxels at stride-2; C2 feature channels;
+    LiDAR/ego-vehicle frame, dtype float32"""
+    x_conv3: torch.Tensor
+    """shape: (N3, C3) – N3 active voxels at stride-4; C3 feature channels;
+    LiDAR/ego-vehicle frame, dtype float32"""
+    x_conv4: torch.Tensor
+    """shape: (N4, C4) – N4 active voxels at stride-8; C4 feature channels;
+    LiDAR/ego-vehicle frame, dtype float32"""
 
 
 class PointCoordsDict(TypedDict, total=False):
@@ -143,23 +132,20 @@ class PointCoordsDict(TypedDict, total=False):
     Companion to :class:`PointFeaturesDict`.  Each entry contains the 3-D
     world coordinates (and batch index) of the points whose features appear at
     the same key in :class:`PointFeaturesDict`.
-
-    Fields
-    ------
-    x_conv1 : torch.Tensor, shape (N1, 4), dtype float32
-        ``[batch_idx, x, y, z]`` for each point at stride-1 resolution.
-    x_conv2 : torch.Tensor, shape (N2, 4), dtype float32
-        Same layout at stride-2 resolution.
-    x_conv3 : torch.Tensor, shape (N3, 4), dtype float32
-        Same layout at stride-4 resolution.
-    x_conv4 : torch.Tensor, shape (N4, 4), dtype float32
-        Same layout at stride-8 resolution.
     """
 
-    x_conv1: torch.Tensor  # shape: (N1, 4) – [batch_idx, x, y, z] for each point at stride-1; x/y/z in metres, ego-vehicle/LiDAR frame, dtype float32
-    x_conv2: torch.Tensor  # shape: (N2, 4) – [batch_idx, x, y, z] for each point at stride-2; x/y/z in metres, ego-vehicle/LiDAR frame, dtype float32
-    x_conv3: torch.Tensor  # shape: (N3, 4) – [batch_idx, x, y, z] for each point at stride-4; x/y/z in metres, ego-vehicle/LiDAR frame, dtype float32
-    x_conv4: torch.Tensor  # shape: (N4, 4) – [batch_idx, x, y, z] for each point at stride-8; x/y/z in metres, ego-vehicle/LiDAR frame, dtype float32
+    x_conv1: torch.Tensor
+    """shape: (N1, 4) – [batch_idx, x, y, z] for each point at stride-1; x/y/z in
+    metres, ego-vehicle/LiDAR frame, dtype float32"""
+    x_conv2: torch.Tensor
+    """shape: (N2, 4) – [batch_idx, x, y, z] for each point at stride-2; x/y/z in
+    metres, ego-vehicle/LiDAR frame, dtype float32"""
+    x_conv3: torch.Tensor
+    """shape: (N3, 4) – [batch_idx, x, y, z] for each point at stride-4; x/y/z in
+    metres, ego-vehicle/LiDAR frame, dtype float32"""
+    x_conv4: torch.Tensor
+    """shape: (N4, 4) – [batch_idx, x, y, z] for each point at stride-8; x/y/z in
+    metres, ego-vehicle/LiDAR frame, dtype float32"""
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +155,7 @@ class PointCoordsDict(TypedDict, total=False):
 class DataDictBase(TypedDict):
     """Required fields that are always present in the per-sample data dict."""
 
-    points: np.ndarray  # shape: (N, 3+C_in) – N raw LiDAR points; columns [x, y, z] in metres (ego-vehicle/LiDAR frame) followed by C_in optional channels (e.g. intensity, time offset); dtype float32
+    points: np.ndarray
     """Point cloud for one LiDAR sweep (or merged sweeps).
 
     Shape: ``(N, 3 + C_in)`` where the first three columns are ``[x, y, z]``
@@ -238,15 +224,27 @@ class DataDict(DataDictBase, total=False):
     """
 
     frame_id: FrameId
-    pose: np.ndarray            # shape: (4, 4) – ego-to-world SE(3) transform for this frame; dtype float64
+    pose: np.ndarray
+    """shape: (4, 4) – ego-to-world SE(3) transform for this frame; dtype float64"""
     sequence_name: str
-    gt_names: np.ndarray        # shape: (M,) – class-name string per GT object (e.g. 'Vehicle'); dtype '<U32'
-    gt_boxes: np.ndarray        # shape: (M, 7+C) or (M, 8) after prepare_data – [x, y, z, dx, dy, dz, heading, (class_label)] in metres/radians; ego-vehicle/LiDAR frame; dtype float32
-    gt_boxes_mask: np.ndarray   # shape: (M,) – True for GT boxes whose class is in the active class list; dtype bool
+    gt_names: np.ndarray
+    """shape: (M,) – class-name string per GT object (e.g. 'Vehicle'); dtype '<U32'"""
+    gt_boxes: np.ndarray
+    """shape: (M, 7+C) or (M, 8) after prepare_data – [x, y, z, dx, dy, dz, heading,
+    (class_label)] in metres/radians; ego-vehicle/LiDAR frame; dtype float32"""
+    gt_boxes_mask: np.ndarray
+    """shape: (M,) – True for GT boxes whose class is in the active class list; dtype
+    bool"""
     use_lead_xyz: bool
-    voxels: np.ndarray          # shape: (num_voxels, max_pts_per_voxel, C) – voxelised point-cloud; C features per point (xyz + optional channels); dtype float32
-    voxel_coords: np.ndarray    # shape: (num_voxels, 3) – integer voxel grid indices [z_idx, y_idx, x_idx] per voxel; dtype int32
-    voxel_num_points: np.ndarray  # shape: (num_voxels,) – number of real points in each voxel (before padding); dtype int32
+    voxels: np.ndarray
+    """shape: (num_voxels, max_pts_per_voxel, C) – voxelised point-cloud; C features
+    per point (xyz + optional channels); dtype float32"""
+    voxel_coords: np.ndarray
+    """shape: (num_voxels, 3) – integer voxel grid indices [z_idx, y_idx, x_idx] per
+    voxel; dtype int32"""
+    voxel_num_points: np.ndarray
+    """shape: (num_voxels,) – number of real points in each voxel (before padding);
+    dtype int32"""
     aug_matrix_inv: AugMatrixInv
     calib: Any
     road_plane: Any
@@ -382,49 +380,85 @@ class BatchDict(BatchDictBase, total=False):
     """
 
     # raw inputs
-    points: Union[np.ndarray, torch.Tensor]  # shape: (sum_N, 1+3+C_in) – batch-concatenated points; columns [batch_idx, x, y, z, ...]; x/y/z in metres; ego-vehicle/LiDAR frame; dtype float32
-    voxels: np.ndarray          # shape: (total_voxels, max_pts, C) – voxelised point-cloud for the whole batch; C features per point; dtype float32
-    voxel_coords: np.ndarray    # shape: (total_voxels, 4) – [batch_idx, z_idx, y_idx, x_idx] per voxel across the batch; dtype int32
-    voxel_num_points: np.ndarray  # shape: (total_voxels,) – number of real points in each voxel (before padding); dtype int32
+    points: Union[np.ndarray, torch.Tensor]
+    """shape: (sum_N, 1+3+C_in) – batch-concatenated points; columns [batch_idx, x, y,
+    z, ...]; x/y/z in metres; ego-vehicle/LiDAR frame; dtype float32"""
+    voxels: np.ndarray
+    """shape: (total_voxels, max_pts, C) – voxelised point-cloud for the whole batch; C
+    features per point; dtype float32"""
+    voxel_coords: np.ndarray
+    """shape: (total_voxels, 4) – [batch_idx, z_idx, y_idx, x_idx] per voxel across the
+    batch; dtype int32"""
+    voxel_num_points: np.ndarray
+    """shape: (total_voxels,) – number of real points in each voxel (before padding);
+    dtype int32"""
     use_lead_xyz: bool
 
     # metadata
-    frame_id: np.ndarray        # shape: (B,) – per-sample frame identifiers; dtype str or int
-    pose: np.ndarray            # shape: (B, 4, 4) – ego-to-world SE(3) transform for each sample; dtype float64
-    sequence_name: np.ndarray   # shape: (B,) – per-sample sequence identifiers; dtype str
+    frame_id: np.ndarray
+    """shape: (B,) – per-sample frame identifiers; dtype str or int"""
+    pose: np.ndarray
+    """shape: (B, 4, 4) – ego-to-world SE(3) transform for each sample; dtype float64"""
+    sequence_name: np.ndarray
+    """shape: (B,) – per-sample sequence identifiers; dtype str"""
 
     # supervision
-    gt_boxes: Union[np.ndarray, torch.Tensor]  # shape: (B, M_max, 7+C+1) – GT boxes zero-padded to max object count; [x, y, z, dx, dy, dz, heading, ..., class_label]; x/y/z in metres, heading in radians; ego-vehicle/LiDAR frame; dtype float32
+    gt_boxes: Union[np.ndarray, torch.Tensor]
+    """shape: (B, M_max, 7+C+1) – GT boxes zero-padded to max object count; [x, y, z,
+    dx, dy, dz, heading, ..., class_label]; x/y/z in metres, heading in radians;
+    ego-vehicle/LiDAR frame; dtype float32"""
 
     # VFE output
-    voxel_features: torch.Tensor  # shape: (total_voxels, C_vfe) – per-voxel feature vectors from the VFE (e.g. mean pooling over points); dtype float32
+    voxel_features: torch.Tensor
+    """shape: (total_voxels, C_vfe) – per-voxel feature vectors from the VFE (e.g. mean
+    pooling over points); dtype float32"""
 
     # Backbone3D outputs
-    encoded_spconv_tensor: Any  # spconv.SparseConvTensor – final sparse 3-D feature volume at stride 8; spatial dims in LiDAR/ego-vehicle frame
+    encoded_spconv_tensor: Any
+    """spconv.SparseConvTensor – final sparse 3-D feature volume at stride 8; spatial
+    dims in LiDAR/ego-vehicle frame"""
     encoded_spconv_tensor_stride: int
     multi_scale_3d_features: MultiScale3DFeatures
     multi_scale_3d_strides: MultiScale3DStrides
 
     # HeightCompression output
-    spatial_features: torch.Tensor    # shape: (B, C*D, H, W) – dense BEV feature map; C channels × D height-bins collapsed; H/W are spatial BEV dims in LiDAR/ego-vehicle frame; dtype float32
+    spatial_features: torch.Tensor
+    """shape: (B, C*D, H, W) – dense BEV feature map; C channels × D height-bins
+    collapsed; H/W are spatial BEV dims in LiDAR/ego-vehicle frame; dtype float32"""
     spatial_features_stride: int
 
     # Backbone2D output
-    spatial_features_2d: torch.Tensor  # shape: (B, C_bev, H', W') – final BEV feature map after 2-D backbone and FPN upsample; H'/W' spatial dims in LiDAR/ego-vehicle frame; dtype float32
+    spatial_features_2d: torch.Tensor
+    """shape: (B, C_bev, H', W') – final BEV feature map after 2-D backbone and FPN
+    upsample; H'/W' spatial dims in LiDAR/ego-vehicle frame; dtype float32"""
 
     # DenseHead / first-stage outputs
     final_box_dicts: List["PredictionDict"]
-    rois: torch.Tensor          # shape: (B, num_rois, 7+C) – top-K region proposals; [x, y, z, dx, dy, dz, heading, ...]; x/y/z in metres, heading in radians; LiDAR/ego-vehicle frame; dtype float32
-    roi_scores: torch.Tensor    # shape: (B, num_rois) – confidence scores in [0, 1] for each proposal; dtype float32
-    roi_labels: torch.Tensor    # shape: (B, num_rois) – 1-indexed class labels for each proposal; dtype int64
-    roi_features: torch.Tensor  # shape: (B, num_rois, C_feat) – bilinearly-interpolated BEV features at proposal centres; dtype float32
+    rois: torch.Tensor
+    """shape: (B, num_rois, 7+C) – top-K region proposals; [x, y, z, dx, dy, dz,
+    heading, ...]; x/y/z in metres, heading in radians; LiDAR/ego-vehicle frame;
+    dtype float32"""
+    roi_scores: torch.Tensor
+    """shape: (B, num_rois) – confidence scores in [0, 1] for each proposal; dtype
+    float32"""
+    roi_labels: torch.Tensor
+    """shape: (B, num_rois) – 1-indexed class labels for each proposal; dtype int64"""
+    roi_features: torch.Tensor
+    """shape: (B, num_rois, C_feat) – bilinearly-interpolated BEV features at proposal
+    centres; dtype float32"""
     has_class_labels: bool
 
     # ROI head outputs
-    batch_cls_preds: torch.Tensor   # shape: (B, num_rois, num_classes) or (sum_rois, num_classes) – per-ROI class logits (before sigmoid/softmax); dtype float32
-    batch_box_preds: torch.Tensor   # shape: (B, num_rois, 7+C) or (sum_rois, 7+C) – per-ROI box predictions; [x, y, z, dx, dy, dz, heading, ...]; LiDAR/ego-vehicle frame; dtype float32
+    batch_cls_preds: torch.Tensor
+    """shape: (B, num_rois, num_classes) or (sum_rois, num_classes) – per-ROI class
+    logits (before sigmoid/softmax); dtype float32"""
+    batch_box_preds: torch.Tensor
+    """shape: (B, num_rois, 7+C) or (sum_rois, 7+C) – per-ROI box predictions; [x, y,
+    z, dx, dy, dz, heading, ...]; LiDAR/ego-vehicle frame; dtype float32"""
     cls_preds_normalized: bool
-    batch_index: Optional[torch.Tensor]  # shape: (sum_rois,) – batch index for each prediction in flat (non-padded) layout; dtype int64
+    batch_index: Optional[torch.Tensor]
+    """shape: (sum_rois,) – batch index for each prediction in flat (non-padded)
+    layout; dtype int64"""
 
     # Point features (PDV head)
     point_features: PointFeaturesDict
@@ -432,7 +466,9 @@ class BatchDict(BatchDictBase, total=False):
 
     # TTA
     tta_ops: List[str]
-    multihead_label_mapping: List[torch.Tensor]  # per element shape: (num_classes_i,) – maps head-local class indices to global 1-indexed labels; dtype int64
+    multihead_label_mapping: List[torch.Tensor]
+    """per element shape: (num_classes_i,) – maps head-local class indices to global
+    1-indexed labels; dtype int64"""
 
 
 # ---------------------------------------------------------------------------
@@ -442,33 +478,33 @@ class BatchDict(BatchDictBase, total=False):
 class SeparateHeadPredDictBase(TypedDict):
     """Required per-head raw outputs always produced by :class:`SeparateHead`."""
 
-    hm: torch.Tensor       # shape: (B, num_classes, H, W) – heatmap logits before sigmoid; H×W is the BEV feature-map grid in LiDAR/ego-vehicle frame; dtype float32
+    hm: torch.Tensor
     """Heatmap logits (before sigmoid).
 
     Shape: ``(B, num_classes, H, W)``, dtype float32.
     """
 
-    center: torch.Tensor   # shape: (B, 2, H, W) – sub-voxel centre offsets [delta_x, delta_y] in the BEV plane (fractional voxel units); LiDAR/ego-vehicle frame; dtype float32
+    center: torch.Tensor
     """Sub-voxel centre offsets in the BEV plane.
 
     Shape: ``(B, 2, H, W)`` where channels are ``[delta_x, delta_y]``,
     dtype float32.
     """
 
-    center_z: torch.Tensor  # shape: (B, 1, H, W) – object centre height z in metres; LiDAR/ego-vehicle frame; dtype float32
+    center_z: torch.Tensor
     """Object centre height (z coordinate in LiDAR frame).
 
     Shape: ``(B, 1, H, W)``, dtype float32.
     """
 
-    dim: torch.Tensor       # shape: (B, 3, H, W) – log-space box dimensions [log(dx), log(dy), log(dz)]; apply exp() to recover metres; LiDAR/ego-vehicle frame; dtype float32
+    dim: torch.Tensor
     """Log-space box dimensions ``[log(l), log(w), log(h)]``.
 
     Shape: ``(B, 3, H, W)``, dtype float32.  Apply ``exp()`` to recover
     the metric dimensions.
     """
 
-    rot: torch.Tensor       # shape: (B, 2, H, W) – rotation encoding [cos(θ), sin(θ)]; θ is yaw heading in radians; use atan2 to recover; LiDAR/ego-vehicle frame; dtype float32
+    rot: torch.Tensor
     """Rotation encoding ``[cos(θ), sin(θ)]``.
 
     Shape: ``(B, 2, H, W)``, dtype float32.  Use ``atan2`` to recover the
@@ -493,8 +529,12 @@ class SeparateHeadPredDict(SeparateHeadPredDictBase, total=False):
         when ``IOU_WEIGHT > 0`` in the model config.
     """
 
-    vel: torch.Tensor  # shape: (B, 2, H, W) – velocity predictions [vx, vy] in metres/second; LiDAR/ego-vehicle frame; dtype float32
-    iou: torch.Tensor  # shape: (B, 1, H, W) – predicted IoU score for IoU-aware confidence re-weighting; values in [0, 1] after sigmoid; dtype float32
+    vel: torch.Tensor
+    """shape: (B, 2, H, W) – velocity predictions [vx, vy] in metres/second;
+    LiDAR/ego-vehicle frame; dtype float32"""
+    iou: torch.Tensor
+    """shape: (B, 1, H, W) – predicted IoU score for IoU-aware confidence re-weighting;
+    values in [0, 1] after sigmoid; dtype float32"""
 
 
 class PredictionDict(TypedDict):
@@ -503,50 +543,41 @@ class PredictionDict(TypedDict):
     Produced by :meth:`CenterHead.generate_predicted_boxes` and
     :meth:`CenterPoint.post_processing`.  Used as elements of the
     ``pred_dicts`` list returned by the model at inference time.
-
-    Fields
-    ------
-    pred_boxes : torch.Tensor, shape (N, 7+C), dtype float32
-        Predicted 3-D bounding boxes ``[x, y, z, dx, dy, dz, heading, ...]``
-        in the LiDAR coordinate frame.
-    pred_scores : torch.Tensor, shape (N,), dtype float32
-        Confidence scores in ``[0, 1]`` for each predicted box.
-    pred_labels : torch.Tensor, shape (N,), dtype int64
-        1-indexed class labels for each predicted box.
     """
 
-    pred_boxes: torch.Tensor   # shape: (N, 7+C) – predicted 3-D boxes [x, y, z, dx, dy, dz, heading, ...]; x/y/z in metres, dx/dy/dz in metres, heading in radians; LiDAR/ego-vehicle frame; dtype float32
-    pred_scores: torch.Tensor  # shape: (N,) – confidence scores in [0, 1] for each predicted box; dtype float32
-    pred_labels: torch.Tensor  # shape: (N,) – 1-indexed class labels for each predicted box; dtype int64
+    pred_boxes: torch.Tensor
+    """shape: (N, 7+C) – predicted 3-D boxes [x, y, z, dx, dy, dz, heading, ...]; x/y/z
+    in metres, dx/dy/dz in metres, heading in radians; LiDAR/ego-vehicle frame;
+    dtype float32"""
+    pred_scores: torch.Tensor
+    """shape: (N,) – confidence scores in [0, 1] for each predicted box; dtype float32"""
+    pred_labels: torch.Tensor
+    """shape: (N,) – 1-indexed class labels for each predicted box; dtype int64"""
 
 
 class CenterHeadTargetDict(TypedDict):
     """Heatmap assignment targets produced by :meth:`CenterHead.assign_targets`.
 
     Each field is a list with one element per detection head (task).
-
-    Fields
-    ------
-    heatmaps : list of torch.Tensor, each shape (B, num_classes_i, H, W)
-        Gaussian heatmaps for the i-th head's object categories.
-        dtype float32 in ``[0, 1]``.
-    target_boxes : list of torch.Tensor, each shape (B, max_objs, code_size)
-        Encoded box regression targets at the Gaussian peaks.
-        code_size = 8 (dx, dy, z, log_l, log_w, log_h, cos_θ, sin_θ)
-        plus optional velocity channels.  dtype float32.
-    inds : list of torch.Tensor, each shape (B, max_objs), dtype int64
-        Flattened ``H * W`` index of the voxel assigned to each object.
-    masks : list of torch.Tensor, each shape (B, max_objs), dtype int64
-        Binary mask; ``1`` for valid objects, ``0`` for padding.
-    heatmap_masks : list of torch.Tensor
-        Reserved for future use; currently populated as an empty list.
     """
 
-    heatmaps: List[torch.Tensor]       # list length = num_heads; each shape: (B, num_classes_i, H, W) – Gaussian heatmap targets ∈ [0, 1]; H×W is the BEV feature-map grid; LiDAR/ego-vehicle frame; dtype float32
-    target_boxes: List[torch.Tensor]   # list length = num_heads; each shape: (B, max_objs, code_size) – encoded box regression targets at Gaussian peaks; code_size = 8: [delta_x, delta_y, z, log(dx), log(dy), log(dz), cos(θ), sin(θ)] + optional vel; dtype float32
-    inds: List[torch.Tensor]           # list length = num_heads; each shape: (B, max_objs) – flattened H×W grid index of the voxel assigned to each object; dtype int64
-    masks: List[torch.Tensor]          # list length = num_heads; each shape: (B, max_objs) – binary validity mask; 1 for real objects, 0 for padding; dtype int64
-    heatmap_masks: List[torch.Tensor]  # list length = num_heads; reserved for future use; currently populated as empty list
+    heatmaps: List[torch.Tensor]
+    """list length = num_heads; each shape: (B, num_classes_i, H, W) – Gaussian heatmap
+    targets in [0, 1]; H×W is the BEV feature-map grid; LiDAR/ego-vehicle frame;
+    dtype float32"""
+    target_boxes: List[torch.Tensor]
+    """list length = num_heads; each shape: (B, max_objs, code_size) – encoded box
+    regression targets at Gaussian peaks; code_size = 8: [delta_x, delta_y, z,
+    log(dx), log(dy), log(dz), cos(θ), sin(θ)] + optional vel; dtype float32"""
+    inds: List[torch.Tensor]
+    """list length = num_heads; each shape: (B, max_objs) – flattened H×W grid index of
+    the voxel assigned to each object; dtype int64"""
+    masks: List[torch.Tensor]
+    """list length = num_heads; each shape: (B, max_objs) – binary validity mask; 1 for
+    real objects, 0 for padding; dtype int64"""
+    heatmap_masks: List[torch.Tensor]
+    """list length = num_heads; reserved for future use; currently populated as empty
+    list"""
 
 
 # ---------------------------------------------------------------------------
@@ -559,36 +590,30 @@ class ProposalTargetDict(TypedDict):
     Produced by the ``forward`` method of both :class:`ProposalTargetLayer`
     and :class:`ProposalTargetLayer_CP` and consumed by the ROI head's loss
     functions.
-
-    Fields
-    ------
-    rois : torch.Tensor, shape (B, M, 7+C), dtype float32
-        Sampled ROIs (M = ROI_PER_IMAGE).  Coordinates are in the LiDAR
-        frame ``[x, y, z, dx, dy, dz, heading, ...]``.
-    gt_of_rois : torch.Tensor, shape (B, M, 7+C), dtype float32
-        Ground-truth boxes transformed into the canonical coordinate frame
-        of each sampled ROI (centred at ROI centre, aligned with ROI heading).
-    gt_iou_of_rois : torch.Tensor, shape (B, M), dtype float32
-        3-D IoU between each sampled ROI and its best-matching GT box.
-    roi_scores : torch.Tensor, shape (B, M), dtype float32
-        Confidence scores of the proposal network for each sampled ROI.
-    roi_labels : torch.Tensor, shape (B, M), dtype int64
-        1-indexed class labels of the sampled ROIs.
-    reg_valid_mask : torch.Tensor, shape (B, M), dtype int64
-        Binary mask; ``1`` when the ROI's IoU exceeds REG_FG_THRESH and is
-        therefore a valid regression target.
-    rcnn_cls_labels : torch.Tensor, shape (B, M), dtype float32 or int64
-        Classification targets; ``1`` for foreground, ``0`` for background,
-        values in (0, 1) for IoU-based soft labels, ``-1`` to ignore.
     """
 
-    rois: torch.Tensor            # shape: (B, M, 7+C) – sampled ROIs; M = ROI_PER_IMAGE; [x, y, z, dx, dy, dz, heading, ...]; x/y/z in metres, heading in radians; LiDAR/ego-vehicle frame; dtype float32
-    gt_of_rois: torch.Tensor      # shape: (B, M, 7+C) – GT box in canonical frame of each ROI (translated to ROI centre, rotated to ROI heading); distances in metres, heading in radians; dtype float32
-    gt_iou_of_rois: torch.Tensor  # shape: (B, M) – 3-D IoU ∈ [0, 1] between each sampled ROI and its best-matching GT box; dtype float32
-    roi_scores: torch.Tensor      # shape: (B, M) – confidence scores ∈ [0, 1] from the proposal network for each sampled ROI; dtype float32
-    roi_labels: torch.Tensor      # shape: (B, M) – 1-indexed class labels for each sampled ROI; dtype int64
-    reg_valid_mask: torch.Tensor  # shape: (B, M) – binary mask; 1 when ROI IoU ≥ REG_FG_THRESH (valid regression target), 0 otherwise; dtype int64
-    rcnn_cls_labels: torch.Tensor  # shape: (B, M) – classification targets; 1 = foreground, 0 = background, (0,1) = IoU-based soft label, -1 = ignore; dtype float32 or int64
+    rois: torch.Tensor
+    """shape: (B, M, 7+C) – sampled ROIs; M = ROI_PER_IMAGE; [x, y, z, dx, dy, dz,
+    heading, ...]; x/y/z in metres, heading in radians; LiDAR/ego-vehicle frame;
+    dtype float32"""
+    gt_of_rois: torch.Tensor
+    """shape: (B, M, 7+C) – GT box in canonical frame of each ROI (translated to ROI
+    centre, rotated to ROI heading); distances in metres, heading in radians; dtype
+    float32"""
+    gt_iou_of_rois: torch.Tensor
+    """shape: (B, M) – 3-D IoU ∈ [0, 1] between each sampled ROI and its best-matching
+    GT box; dtype float32"""
+    roi_scores: torch.Tensor
+    """shape: (B, M) – confidence scores ∈ [0, 1] from the proposal network for each
+    sampled ROI; dtype float32"""
+    roi_labels: torch.Tensor
+    """shape: (B, M) – 1-indexed class labels for each sampled ROI; dtype int64"""
+    reg_valid_mask: torch.Tensor
+    """shape: (B, M) – binary mask; 1 when ROI IoU ≥ REG_FG_THRESH (valid regression
+    target), 0 otherwise; dtype int64"""
+    rcnn_cls_labels: torch.Tensor
+    """shape: (B, M) – classification targets; 1 = foreground, 0 = background, (0,1) =
+    IoU-based soft label, -1 = ignore; dtype float32 or int64"""
 
 
 class RoIHeadForwardDictBase(ProposalTargetDict):
@@ -618,10 +643,18 @@ class RoIHeadForwardDict(RoIHeadForwardDictBase, total=False):
         Per-ROI feature vectors carried through ROI sampling (CP variant).
     """
 
-    gt_of_rois_src: torch.Tensor  # shape: (B, M, 7+C) – original (pre-canonical-transform) GT boxes for each sampled ROI; used for corner-loss; LiDAR/ego-vehicle frame; dtype float32
-    rcnn_cls: torch.Tensor        # shape: (B*M, num_class) or (B*M, 1) – ROI head classification logits before sigmoid/softmax; num_class or 1 for binary; dtype float32
-    rcnn_reg: torch.Tensor        # shape: (B*M, code_size) – ROI head box regression predictions in canonical ROI frame; code_size = 7 ([dx, dy, dz, log_l, log_w, log_h, dθ]); dtype float32
-    roi_features: torch.Tensor    # shape: (B, M, C_feat) – per-ROI feature vectors carried through ROI sampling (CP variant only); C_feat = feature dimension; dtype float32
+    gt_of_rois_src: torch.Tensor
+    """shape: (B, M, 7+C) – original (pre-canonical-transform) GT boxes for each
+    sampled ROI; used for corner-loss; LiDAR/ego-vehicle frame; dtype float32"""
+    rcnn_cls: torch.Tensor
+    """shape: (B*M, num_class) or (B*M, 1) – ROI head classification logits before
+    sigmoid/softmax; num_class or 1 for binary; dtype float32"""
+    rcnn_reg: torch.Tensor
+    """shape: (B*M, code_size) – ROI head box regression predictions in canonical ROI
+    frame; code_size = 7 ([dx, dy, dz, log_l, log_w, log_h, dθ]); dtype float32"""
+    roi_features: torch.Tensor
+    """shape: (B, M, C_feat) – per-ROI feature vectors carried through ROI sampling (CP
+    variant only); C_feat = feature dimension; dtype float32"""
 
 
 # ---------------------------------------------------------------------------
@@ -638,15 +671,15 @@ class ModelInfoDictBase(TypedDict):
     """Number of point-wise feature channels flowing into/out of the current
     module under construction; updated after each module is built."""
 
-    grid_size: np.ndarray  # shape: (3,) – voxel-grid extent [Nx, Ny, Nz] (number of voxels per axis); derived from point_cloud_range / voxel_size; dtype int64
+    grid_size: np.ndarray
     """Voxel-grid dimensions ``[Nx, Ny, Nz]`` (int64), derived from the
     point-cloud range and voxel size."""
 
-    point_cloud_range: np.ndarray  # shape: (6,) – axis-aligned detection volume [x_min, y_min, z_min, x_max, y_max, z_max] in metres; LiDAR/ego-vehicle frame; dtype float32
+    point_cloud_range: np.ndarray
     """Axis-aligned bounding box of the detection volume:
     ``[x_min, y_min, z_min, x_max, y_max, z_max]``, dtype float32."""
 
-    voxel_size: np.ndarray  # shape: (3,) – physical size of one voxel [vx, vy, vz] in metres along x/y/z; dtype float32
+    voxel_size: np.ndarray
     """Physical size of one voxel ``[vx, vy, vz]`` in metres, dtype float32."""
 
 

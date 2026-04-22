@@ -230,8 +230,9 @@ class RefineBatchDict(TypedDict, total=False):
     feature channels"""
     query: torch.Tensor
     """shape: (B, D, Q) – encoded query features from query encoder/MLP; D = embed_dims
-    (default 256), Q = query count (geo: Q proposals; pos: QUERY_NUM); populated
-    inside forward() of GeometryTransformer/PositionTransformer"""
+    (default 256), Q = query count (geometry stage: variable proposal count; position
+    stage: fixed QUERY_NUM); populated inside forward() of
+    GeometryTransformer/PositionTransformer"""
     memory: torch.Tensor
     """shape: (B, D, L) – encoded memory (key/value) features from memory encoder/MLP;
     D = embed_dims (default 256), L = memory sequence length (geo: Pm; pos: Q*Pm);

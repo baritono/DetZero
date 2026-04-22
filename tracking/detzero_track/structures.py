@@ -302,8 +302,8 @@ class GroundTruthAnnotations(TypedDict, total=False):
     pose); columns: [x, y, z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters,
     heading in radians in (-π, π]"""
     difficulty: np.ndarray
-    """shape: (N,) – per-object difficulty label; dtype int32; 0 = unknown, 1 = L1 (>5
-    LiDAR points), 2 = L2 (≤5 LiDAR points)"""
+    """shape: (N,) – per-object difficulty label; dtype int32; 0 = unknown, 1 = L1
+    (more than 5 LiDAR points), 2 = L2 (5 or fewer LiDAR points)"""
     num_points_in_gt: np.ndarray
     """shape: (N,) – number of LiDAR points inside each GT box; dtype int32"""
 

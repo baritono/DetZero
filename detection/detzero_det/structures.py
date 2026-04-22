@@ -95,10 +95,13 @@ class MultiScale3DFeatures(TypedDict, total=False):
     """
 
     x_conv1: Any
-    """spconv.SparseConvTensor"""
+    """spconv.SparseConvTensor (stride-1 highest-resolution sparse feature map)."""
     x_conv2: Any
+    """spconv.SparseConvTensor (stride-2 sparse feature map)."""
     x_conv3: Any
+    """spconv.SparseConvTensor (stride-4 sparse feature map)."""
     x_conv4: Any
+    """spconv.SparseConvTensor (stride-8 lowest-resolution sparse feature map)."""
 
 
 class MultiScale3DStrides(TypedDict, total=False):
@@ -628,7 +631,7 @@ class CenterHeadTargetDict(TypedDict):
 
     heatmaps: List[torch.Tensor]
     """list length = num_heads; each shape: (B, num_classes_i, H, W) – Gaussian heatmap
-    targets ∈ [0, 1]; H×W is the BEV feature-map grid; LiDAR/ego-vehicle frame;
+    targets in [0, 1]; H×W is the BEV feature-map grid; LiDAR/ego-vehicle frame;
     dtype float32"""
     target_boxes: List[torch.Tensor]
     """list length = num_heads; each shape: (B, max_objs, code_size) – encoded box

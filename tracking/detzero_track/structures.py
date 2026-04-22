@@ -78,7 +78,12 @@ class FrameDetectionData(AnnotationDict, total=False):
     """
 
     boxes_global: np.ndarray
+    """shape: (N, 7) or (N, 9) – bounding boxes in world/global frame; columns: [x, y,
+    z, dx, dy, dz, heading] (meters for x/y/z/dx/dy/dz, radians for heading, in (-π,
+    π]); optional last 2 cols: [vx, vy] in m/s"""
     num_points: np.ndarray
+    """shape: (N,) – number of LiDAR points inside each detection box; dtype int32; 0
+    for unmatched tracks"""
     sample_idx: FrameId
     timestamp: float
     obj_ids: np.ndarray
@@ -128,6 +133,9 @@ class TrackFrameState(TypedDict):
     """
 
     boxes_global: np.ndarray
+    """shape: (9,) – single-frame track state in world/global frame: [x, y, z, dx, dy,
+    dz, heading, vx, vy]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π],
+    vx/vy in m/s (Kalman-filter velocity estimate)"""
     name: str
     score: float
     sample_idx: FrameId
@@ -233,8 +241,12 @@ class TrackletData(TrackletDataBase, total=False):
 
     state: str
     iou: np.ndarray
+    """shape: (T,) – per-frame IoU between this track and its assigned GT object; dtype
+    float32; set by assign_track_target"""
     iou_idx: List[int]
     start: np.ndarray
+    """shape: (T,) – binary flag; 1 on the first frame of the track's life, 0
+    otherwise; dtype int; used during reverse-tracking pass"""
     boxes_lidar: np.ndarray
     """Per-time-step bounding boxes in the LiDAR (ego-vehicle) frame,
     shape ``(T, 7)``, dtype float32: ``[x, y, z, dx, dy, dz, heading]``.
@@ -275,11 +287,25 @@ class GroundTruthAnnotations(TypedDict, total=False):
     """
 
     name: np.ndarray
+    """shape: (N,) – class name for each annotated object (e.g. 'Vehicle',
+    'Pedestrian', 'Cyclist'); dtype object (str); N = number of GT objects in this
+    frame"""
     obj_ids: np.ndarray
+    """shape: (N,) – unique per-sequence object identifiers assigned by the Waymo
+    dataset; dtype int-like"""
     gt_boxes_lidar: np.ndarray
+    """shape: (N, 7+) – GT bounding boxes in ego-vehicle/LiDAR frame; columns: [x, y,
+    z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in
+    (-π, π]"""
     gt_boxes_global: np.ndarray
+    """shape: (N, 7+) – GT bounding boxes in world/global frame (transformed via frame
+    pose); columns: [x, y, z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters,
+    heading in radians in (-π, π]"""
     difficulty: np.ndarray
+    """shape: (N,) – per-object difficulty label; dtype int32; 0 = unknown, 1 = L1 (>5
+    LiDAR points), 2 = L2 (≤5 LiDAR points)"""
     num_points_in_gt: np.ndarray
+    """shape: (N,) – number of LiDAR points inside each GT box; dtype int32"""
 
 
 class GroundTruthFrameData(TypedDict, total=False):
@@ -308,6 +334,8 @@ class GroundTruthFrameData(TypedDict, total=False):
     frame_id: FrameId
     sample_idx: FrameId
     pose: np.ndarray
+    """shape: (4, 4) – ego-to-world SE(3) homogeneous transform for this frame; dtype
+    float64"""
 
 
 # ---------------------------------------------------------------------------
@@ -421,13 +449,30 @@ class GroundTruthTrackletData(TypedDict, total=False):
     """
 
     sample_idx: np.ndarray
+    """shape: (T,) – frame IDs of every appearance of this GT object; dtype str; T =
+    number of frames this GT object appears in"""
     iou_idx: np.ndarray
+    """shape: (T,) – row indices into the per-frame IoU matrix built by
+    get_iou_mat_dict; dtype int; temporary field, popped after use"""
     name: np.ndarray
+    """shape: (T,) – class name for each appearance (e.g. 'Vehicle'); dtype object
+    (str)"""
     obj_ids: np.ndarray
+    """shape: (T,) – GT object identifier for each appearance; all elements equal for a
+    single GT track; dtype int-like"""
     gt_boxes_global: np.ndarray
+    """shape: (T, 7+) – GT bounding boxes in world/global frame; columns: [x, y, z, dx,
+    dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in (-π, π]"""
     gt_boxes_lidar: np.ndarray
+    """shape: (T, 7+) – GT bounding boxes in ego-vehicle/LiDAR frame; columns: [x, y,
+    z, dx, dy, dz, heading, ...]; x/y/z/dx/dy/dz in meters, heading in radians in
+    (-π, π]"""
     difficulty: np.ndarray
+    """shape: (T,) – per-appearance difficulty label; dtype int32; 0 = unknown, 1 = L1
+    (>5 LiDAR pts), 2 = L2 (≤5 LiDAR pts)"""
     num_points_in_gt: np.ndarray
+    """shape: (T,) – number of LiDAR points inside the GT box at each appearance; dtype
+    int32"""
 
 
 # ---------------------------------------------------------------------------

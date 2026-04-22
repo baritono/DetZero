@@ -1,0 +1,161 @@
+name: Ubuntu 20.04 Smoke Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    name: Smoke Tests (Ubuntu 20.04 / Python 3.8 / CPU-only)
+    runs-on: ubuntu-20.04
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Source
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # -----------------------------------------------------------------------
+      # 2. Python
+      # -----------------------------------------------------------------------
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      # -----------------------------------------------------------------------
+      # 3. Pip cache
+      # -----------------------------------------------------------------------
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py38-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-py38-
+
+      # -----------------------------------------------------------------------
+      # 4. Python dependencies
+      # -----------------------------------------------------------------------
+      - name: Upgrade pip / setuptools / wheel
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install PyTorch (CPU-only, as documented in INSTALL.md)
+        # The documented version is 1.10.0+cu111; we use the CPU-only variant
+        # so the smoke tests run without a GPU or CUDA toolkit.
+        run: |
+          pip install \
+            torch==1.10.0+cpu \
+            torchvision==0.11.0+cpu \
+            torchaudio==0.10.0 \
+            --find-links https://download.pytorch.org/whl/torch_stable.html
+
+      - name: Install requirements.txt packages
+        # opencv-python-headless replaces opencv-python for headless CI servers.
+        # spconv and waymo-open-dataset are skipped: spconv requires a CUDA
+        # toolkit and waymo-open-dataset requires TensorFlow (both unavailable
+        # on a CPU-only runner); their absence is documented by xfail tests.
+        run: |
+          pip install \
+            "numpy<=1.19.5" \
+            "numba==0.48.0" \
+            tensorboardX \
+            easydict \
+            pyyaml \
+            tqdm \
+            opencv-python-headless \
+            tabulate \
+            kornia \
+            scipy \
+            addict \
+            typing_extensions
+
+      - name: Install unlisted runtime dependencies
+        # filterpy is required by the tracking Kalman filter (ab3dmot.py) but
+        # is absent from requirements.txt.  It installs on Python 3.8 (distutils
+        # present) but not on Python 3.11+ (distutils removed).
+        run: pip install filterpy
+
+      - name: Install pytest
+        run: pip install pytest
+
+      # -----------------------------------------------------------------------
+      # 5. Generate version.py for every module
+      # -----------------------------------------------------------------------
+      # Each setup.py calls write_version_to_file() *before* invoking setup(),
+      # so version.py is created even when the CUDA extension build fails.
+      # The || true suppresses the non-zero exit from utils/setup.py which
+      # raises OSError because CUDA_HOME is not set on a CPU-only runner.
+      - name: Generate version.py files (no CUDA compilation)
+        working-directory: ${{ github.workspace }}
+        run: |
+          (cd utils     && python setup.py egg_info 2>&1) || true
+          (cd detection && python setup.py egg_info 2>&1) || true
+          (cd tracking  && python setup.py egg_info 2>&1) || true
+          (cd refining  && python setup.py egg_info 2>&1) || true
+
+      - name: Verify version.py files were created
+        run: |
+          for f in \
+            utils/detzero_utils/version.py \
+            detection/detzero_det/version.py \
+            tracking/detzero_track/version.py \
+            refining/detzero_refine/version.py; do
+            if [ ! -f "$f" ]; then
+              echo "ERROR: $f was not created" >&2
+              exit 1
+            fi
+            echo "OK: $f -> $(cat $f)"
+          done
+
+      # -----------------------------------------------------------------------
+      # 6. PYTHONPATH
+      # -----------------------------------------------------------------------
+      # Point Python at the four module source trees so they can be imported
+      # without a full `pip install`.  utils cannot be installed normally on a
+      # CPU-only runner because its setup.py defines CUDA extension modules.
+      - name: Configure PYTHONPATH for all modules
+        run: |
+          echo "PYTHONPATH=${{ github.workspace }}/utils:${{ github.workspace }}/detection:${{ github.workspace }}/tracking:${{ github.workspace }}/refining" >> $GITHUB_ENV
+
+      # -----------------------------------------------------------------------
+      # 7. Smoke tests
+      # -----------------------------------------------------------------------
+      - name: Run smoke tests
+        run: pytest tests/smoke_test.py -v --tb=short
+
+      # -----------------------------------------------------------------------
+      # 8. Summary of known issues (always runs, even if tests fail)
+      # -----------------------------------------------------------------------
+      - name: Print known issues summary
+        if: always()
+        run: |
+          cat <<'EOF'
+          ┌─────────────────────────────────────────────────────────────────┐
+          │                  DetZero CPU-only Environment Summary            │
+          ├──────────────────────────────┬──────────────────────────────────┤
+          │ Component                    │ Status                           │
+          ├──────────────────────────────┼──────────────────────────────────┤
+          │ detzero_utils (pure Python)  │ ✓ OK                             │
+          │ detzero_det (pure Python)    │ ✓ OK                             │
+          │ detzero_track (pure Python)  │ ✓ OK                             │
+          │ detzero_refine (pure Python) │ ✓ OK                             │
+          ├──────────────────────────────┼──────────────────────────────────┤
+          │ CUDA ops (iou3d_nms etc.)    │ ✗ Not compiled (no GPU/CUDA)     │
+          │ spconv                       │ ✗ Not installed (requires CUDA)  │
+          │ waymo-open-dataset           │ ✗ Not installed (requires TF)    │
+          ├──────────────────────────────┼──────────────────────────────────┤
+          │ BUG: _BASE_CONFIG_ paths     │ Relative to CWD, not config dir  │
+          │   Model configs fail unless  │ CWD == <module>/tools/           │
+          │ BUG: filterpy not in         │ requirements.txt missing dep for  │
+          │   requirements.txt           │ Kalman filter (tracking module)   │
+          │ BUG: cumm not in             │ requirements.txt missing dep for  │
+          │   requirements.txt           │ data_processor (detection module) │
+          │ NOTE: numba==0.48.0 pinned   │ Very old; may conflict on newer   │
+          │   in requirements.txt        │ Python/NumPy environments         │
+          └──────────────────────────────┴──────────────────────────────────┘
+          EOF

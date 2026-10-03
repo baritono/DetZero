@@ -1,8 +1,11 @@
+from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
 
 from detzero_utils import box_utils
+from detzero_utils.shape_types import Float, Shaped, Tensor, shape_checked
 
 from .centernet_utils import _gather_feat, _transpose_and_gather_feat
 
@@ -42,7 +45,13 @@ class WeightedSmoothL1Loss(nn.Module):
 
         return loss
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
+    @shape_checked
+    def forward(
+        self,
+        input: Float[Tensor, "B A code_size"],
+        target: Float[Tensor, "B A code_size"],
+        weights: Optional[Float[Tensor, "B A"]] = None,
+    ) -> Float[Tensor, "B A code_size"]:
         """
         Args:
             input: (B, #anchors, #codes) float tensor.
@@ -52,7 +61,7 @@ class WeightedSmoothL1Loss(nn.Module):
             weights: (B, #anchors) float tensor if not None.
 
         Returns:
-            loss: (B, #anchors) float tensor.
+            loss: (B, #anchors, #codes) float tensor.
                 Weighted smooth l1 loss without reduction.
         """
         target = torch.where(torch.isnan(target), input, target)  # ignore nan targets
@@ -84,7 +93,13 @@ class WeightedL1Loss(nn.Module):
             self.code_weights = np.array(code_weights, dtype=np.float32)
             self.code_weights = torch.from_numpy(self.code_weights).cuda()
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
+    @shape_checked
+    def forward(
+        self,
+        input: Float[Tensor, "B A code_size"],
+        target: Float[Tensor, "B A code_size"],
+        weights: Optional[Float[Tensor, "B A"]] = None,
+    ) -> Float[Tensor, "B A code_size"]:
         """
         Args:
             input: (B, #anchors, #codes) float tensor.
@@ -94,7 +109,7 @@ class WeightedL1Loss(nn.Module):
             weights: (B, #anchors) float tensor if not None.
 
         Returns:
-            loss: (B, #anchors) float tensor.
+            loss: (B, #anchors, #codes) float tensor.
                 Weighted smooth l1 loss without reduction.
         """
         target = torch.where(torch.isnan(target), input, target)  # ignore nan targets
@@ -114,7 +129,11 @@ class WeightedL1Loss(nn.Module):
         return loss
 
 
-def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
+@shape_checked
+def get_corner_loss_lidar(
+    pred_bbox3d: Float[Tensor, "N 7"],
+    gt_bbox3d: Float[Tensor, "N 7"],
+) -> Float[Tensor, " N"]:
     """
     Args:
         pred_bbox3d: (N, 7) float Tensor.
@@ -140,7 +159,12 @@ def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
     return corner_loss.mean(dim=1)
 
 
-def neg_loss_cornernet(pred, gt, mask=None):
+@shape_checked
+def neg_loss_cornernet(
+    pred: Float[Tensor, "B C H W"],
+    gt: Float[Tensor, "B C H W"],
+    mask: Optional[Shaped[Tensor, "B H W"]] = None,
+) -> Float[Tensor, ""]:
     """
     Refer to https://github.com/tianweiy/CenterPoint.
     Modified focal loss. Exactly the same as CornerNet. Runs faster and costs a little bit more memory
@@ -149,6 +173,7 @@ def neg_loss_cornernet(pred, gt, mask=None):
         gt: (batch x c x h x w)
         mask: (batch x h x w)
     Returns:
+        loss: () scalar focal loss
     """
     pos_inds = gt.eq(1).float()
     neg_inds = gt.lt(1).float()
@@ -190,7 +215,12 @@ class FocalLossCenterNet(nn.Module):
         return self.neg_loss(out, target, mask=mask)
 
 
-def _reg_loss(regr, gt_regr, mask):
+@shape_checked
+def _reg_loss(
+    regr: Float[Tensor, "B max_objs D"],
+    gt_regr: Float[Tensor, "B max_objs D"],
+    mask: Shaped[Tensor, "B max_objs"],
+) -> Float[Tensor, " D"]:
     """
     Refer to https://github.com/tianweiy/CenterPoint
     L1 regression loss
@@ -199,6 +229,7 @@ def _reg_loss(regr, gt_regr, mask):
         gt_regr (batch x max_objects x dim)
         mask (batch x max_objects)
     Returns:
+        loss: (dim,) per-code L1 loss, normalised by the number of objects
     """
     num = mask.float().sum()
     mask = mask.unsqueeze(2).expand_as(gt_regr).float()

@@ -1,0 +1,55 @@
+name: Harness gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: harness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install (CPU torch, no CUDA extensions)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy scipy numba tqdm easydict pyyaml
+          pip install -r requirements-dev.txt
+      - name: Lint (harness code)
+        run: ruff check tests scripts utils/detzero_utils/shape_types.py
+      - name: Types (mypy ratchet over shape-contract modules)
+        run: python scripts/mypy_ratchet.py
+      - name: Tests (shape contracts enforced)
+        env:
+          DETZERO_SHAPE_CHECK: "1"
+        run: python -m pytest -q -m "not slow and not cuda"
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install semgrep
+      - name: House rules (diff-aware on PRs)
+        env:
+          SEMGREP_ENABLE_VERSION_CHECK: "0"
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            semgrep scan --config .semgrep/ --metrics=off --error \
+              --baseline-commit "origin/${{ github.base_ref }}"
+          else
+            semgrep scan --config .semgrep/ --metrics=off || true
+          fi

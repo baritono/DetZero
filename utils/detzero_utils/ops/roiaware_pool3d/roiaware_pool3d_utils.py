@@ -6,14 +6,19 @@ from torch.autograd import Function
 # from . import roiaware_pool3d_cuda
 
 from detzero_utils import common_utils
+from detzero_utils.shape_types import Float, Int, Tensor, TensorOrArray, shape_checked
 from detzero_utils.ops.roiaware_pool3d import roiaware_pool3d_cuda
 
 
-def points_in_boxes_cpu(points, boxes):
+@shape_checked
+def points_in_boxes_cpu(
+    points: Float[TensorOrArray, "P 3"],
+    boxes: Float[TensorOrArray, "N 7"],
+) -> Int[TensorOrArray, "N P"]:
     """
     Args:
         points: (num_points, 3)
-        boxes: [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center, each box DO NOT overlaps
+        boxes: (N, 7) [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center, each box DO NOT overlaps
     Returns:
         point_indices: (N, num_points)
     """
@@ -27,7 +32,11 @@ def points_in_boxes_cpu(points, boxes):
 
     return point_indices.numpy() if is_numpy else point_indices
 
-def points_in_boxes_gpu(points, boxes):
+@shape_checked
+def points_in_boxes_gpu(
+    points: Float[Tensor, "B M 3"],
+    boxes: Float[Tensor, "B T 7"],
+) -> Int[Tensor, "B M"]:
     """
     :param points: (B, M, 3)
     :param boxes: (B, T, 7), num_valid_boxes <= T
@@ -42,7 +51,11 @@ def points_in_boxes_gpu(points, boxes):
 
     return box_idxs_of_pts
 
-def points_in_boxes_gpu_v2(points, boxes):
+@shape_checked
+def points_in_boxes_gpu_v2(
+    points: Float[Tensor, "B M 3"],
+    boxes: Float[Tensor, "B T 7"],
+) -> Int[Tensor, "B T M"]:
     """
     :param points: (B, M, 3)
     :param boxes: (B, T, 7), num_valid_boxes <= T
@@ -57,7 +70,12 @@ def points_in_boxes_gpu_v2(points, boxes):
 
     return box_idxs_of_pts
 
-def points_in_multi_boxes_gpu(points, boxes, max_num_boxes):
+@shape_checked
+def points_in_multi_boxes_gpu(
+    points: Float[Tensor, "B M 3"],
+    boxes: Float[Tensor, "B T 7"],
+    max_num_boxes: int,
+) -> Int[Tensor, "B M max_num_boxes"]:
     """
     :param points: (B, M, 3)
     :param boxes: (B, T, 7), num_valid_boxes <= T
@@ -73,11 +91,15 @@ def points_in_multi_boxes_gpu(points, boxes, max_num_boxes):
 
     return box_idxs_of_pts
 
-def points_in_boxes_num_gpu(points, boxes):
+@shape_checked
+def points_in_boxes_num_gpu(
+    points: Float[Tensor, "B M 3"],
+    boxes: Float[Tensor, "B T 7"],
+) -> Int[Tensor, "B T"]:
     """
     :param points: (B, M, 3)
     :param boxes: (B, T, 7), num_valid_boxes <= T
-    :return box_idxs_of_pts: (B, M), default background = -1
+    :return num_points_in_box: (B, T), number of points inside each box
     """
     assert boxes.shape[0] == points.shape[0]
     assert boxes.shape[2] == 7 and points.shape[2] == 3
@@ -89,7 +111,11 @@ def points_in_boxes_num_gpu(points, boxes):
     return num_points_in_box
 
 
-def points_in_boxes_2d_gpu(points, boxes):
+@shape_checked
+def points_in_boxes_2d_gpu(
+    points: Float[Tensor, "B M 2"],
+    boxes: Float[Tensor, "B T 5"],
+) -> Int[Tensor, "B M"]:
     """
     :param points: (B, M, 2)
     :param boxes: (B, T, 5), num_valid_boxes <= T
@@ -104,11 +130,15 @@ def points_in_boxes_2d_gpu(points, boxes):
 
     return box_idxs_of_pts
 
-def points_in_boxes_2d_gpu_v2(points, boxes):
+@shape_checked
+def points_in_boxes_2d_gpu_v2(
+    points: Float[Tensor, "B M 2"],
+    boxes: Float[Tensor, "B T 5"],
+) -> Int[Tensor, "B M T"]:
     """
     :param points: (B, M, 2)
     :param boxes: (B, T, 5), num_valid_boxes <= T
-    :return box_idxs_of_pts: (B, M), default background = -1
+    :return point_indices: (B, M, T), per-(point, box) membership written by the CUDA kernel
     """
     assert boxes.shape[0] == points.shape[0]
     assert boxes.shape[2] == 5 and points.shape[2] == 2

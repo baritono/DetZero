@@ -1,0 +1,35 @@
+# pip install -r requirements-dev.txt && pre-commit install --hook-type pre-commit --hook-type pre-push
+# Pin each rev to a current release tag when updating.
+default_install_hook_types: [pre-commit, pre-push]
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        # Legacy modules are not ruff-clean yet; lint the harness code strictly.
+        # (The agent PostToolUse hook lints edits to any file, diff-aware.)
+        files: ^(tests/|scripts/|utils/detzero_utils/shape_types\.py$)
+
+  - repo: local
+    hooks:
+      - id: block-artifacts
+        name: block model / data artifacts
+        entry: "Model checkpoints and cached data do not belong in git. TO FIX: keep them under data/ or checkpoints/ (both git-ignored)."
+        language: fail
+        files: \.(pth|pt|ckpt|pkl|npy|bin)$
+
+      - id: mypy-ratchet
+        name: mypy ratchet (shape-contract modules)
+        entry: python scripts/mypy_ratchet.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]
+
+      - id: pytest
+        name: pytest (CPU, not slow)
+        entry: python -m pytest -x -q -m "not slow and not cuda"
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]

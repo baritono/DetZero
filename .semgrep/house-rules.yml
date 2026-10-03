@@ -6,8 +6,8 @@ rules:
     languages: [python]
     severity: ERROR
     paths:
-      include: ["utils/**", "detection/**", "tracking/**", "refining/**"]
-      exclude: ["tests/**"]
+      include: ["/utils/**", "/detection/**", "/tracking/**", "/refining/**"]
+      exclude: ["/tests/**"]
     pattern-either:
       - pattern: |
           def $F(..., $ARG: torch.Tensor, ...): ...
@@ -32,7 +32,7 @@ rules:
     languages: [python]
     severity: ERROR
     paths:
-      exclude: ["utils/detzero_utils/shape_types.py"]
+      exclude: ["/utils/detzero_utils/shape_types.py"]
     pattern-either:
       - pattern: from jaxtyping import $X
       - pattern: import jaxtyping

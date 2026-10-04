@@ -35,7 +35,7 @@ def in_hull(
 
 
 @shape_checked
-def boxes_to_corners_3d(boxes3d: Boxes3D) -> Corners3D:
+def boxes_to_corners_3d(boxes3d: BoxesND) -> Corners3D:
     """
         7 -------- 4
        /|         /|
@@ -45,7 +45,8 @@ def boxes_to_corners_3d(boxes3d: Boxes3D) -> Corners3D:
       |/         |/
       2 -------- 1
     Args:
-        boxes3d:  (N, 7) [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
+        boxes3d:  (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...], (x, y, z) is the box center;
+            extra columns (e.g. velocity) are ignored
 
     Returns:
         corners3d: (N, 8, 3), same backend (numpy / torch) as the input
@@ -111,7 +112,7 @@ def remove_points_in_boxes3d(
 
 @shape_checked
 def boxes3d_kitti_camera_to_lidar(
-    boxes3d_camera: Float[np.ndarray, "N 7"], calib: Any,
+    boxes3d_camera: Float[np.ndarray, "N box_dim"], calib: Any,
 ) -> Float[np.ndarray, "N 7"]:
     """
     Args:
@@ -133,7 +134,7 @@ def boxes3d_kitti_camera_to_lidar(
 
 @shape_checked
 def boxes3d_kitti_fakelidar_to_lidar(
-    boxes3d_lidar: Float[np.ndarray, "N 7"],
+    boxes3d_lidar: Float[np.ndarray, "N box_dim"],
 ) -> Float[np.ndarray, "N 7"]:
     """
     Args:
@@ -153,7 +154,7 @@ def boxes3d_kitti_fakelidar_to_lidar(
 
 @shape_checked
 def boxes3d_kitti_lidar_to_fakelidar(
-    boxes3d_lidar: Float[np.ndarray, "N 7"],
+    boxes3d_lidar: Float[np.ndarray, "N box_dim"],
 ) -> Float[np.ndarray, "N 7"]:
     """
     Args:
@@ -218,7 +219,7 @@ def enlarge_box3d(
 
 @shape_checked
 def boxes3d_lidar_to_kitti_camera(
-    boxes3d_lidar: Float[np.ndarray, "N 7"], calib: Any,
+    boxes3d_lidar: Float[np.ndarray, "N box_dim"], calib: Any,
 ) -> Float[np.ndarray, "N 7"]:
     """
     :param boxes3d_lidar: (N, 7) [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
@@ -240,7 +241,7 @@ def boxes3d_lidar_to_kitti_camera(
 
 @shape_checked
 def boxes3d_to_corners3d_kitti_camera(
-    boxes3d: Float[np.ndarray, "N 7"], bottom_center: bool = True,
+    boxes3d: Float[np.ndarray, "N box_dim"], bottom_center: bool = True,
 ) -> Float[np.ndarray, "N 8 3"]:
     """
     :param boxes3d: (N, 7) [x, y, z, l, h, w, ry] in camera coords, see the definition of ry in KITTI dataset
@@ -289,7 +290,7 @@ def boxes3d_to_corners3d_kitti_camera(
 
 @shape_checked
 def boxes3d_kitti_camera_to_imageboxes(
-    boxes3d: Float[np.ndarray, "N 7"],
+    boxes3d: Float[np.ndarray, "N box_dim"],
     calib: Any,
     image_shape: Optional[Sequence[int]] = None,
 ) -> Float[np.ndarray, "N 4"]:
@@ -382,7 +383,7 @@ def boxes3d_nearest_bev_iou(
 
 @shape_checked
 def boxes3d_to_boxes2d(
-    boxes3d: Float[np.ndarray, "N 7"],
+    boxes3d: Float[np.ndarray, "N box_dim"],
     lidar_to_cam: Any,
     cam_to_img: Any,
     image_shape: Optional[Sequence[int]],

@@ -113,6 +113,17 @@ def test_corner_edge_lengths_match_dims(boxes):
     np.testing.assert_allclose(np.linalg.norm(c[:, 0] - c[:, 4], axis=-1), boxes[:, 5], rtol=1e-4, atol=1e-3)
 
 
+@given(boxes=boxes7(), data=st.data())
+@settings(max_examples=50, deadline=None)
+def test_corners_ignore_extra_box_columns(boxes, data):
+    # CenterPoint predictions and refining trajectories carry velocity columns: (N, 9).
+    extra = data.draw(hnp.arrays(np.float32, (boxes.shape[0], 2), elements=coord))
+    boxes9 = np.concatenate([boxes, extra], axis=1)
+    np.testing.assert_array_equal(box_utils.boxes_to_corners_3d(boxes9), box_utils.boxes_to_corners_3d(boxes))
+    t9 = torch.from_numpy(boxes9)
+    assert box_utils.boxes_to_corners_3d(t9).shape == (boxes.shape[0], 8, 3)
+
+
 @given(a=boxes7(min_n=1), b=boxes7(min_n=1))
 @settings(max_examples=100, deadline=None)
 def test_nearest_bev_iou_bounds_symmetry_and_self(a, b):
@@ -140,7 +151,7 @@ def test_enlarge_box3d_only_touches_dims(boxes, extra):
 # Contracts reject wrong shapes at the call site
 # --------------------------------------------------------------------------- #
 
-@pytest.mark.parametrize("bad", [np.zeros((4, 6), np.float32), np.zeros((4,), np.float32),
+@pytest.mark.parametrize("bad", [np.zeros((4,), np.float32), np.zeros((2, 4, 7), np.float32),
                                  np.zeros((4, 7), np.int64)])
 def test_boxes_to_corners_rejects_bad_input(bad):
     from detzero_utils import shape_types

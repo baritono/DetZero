@@ -24,6 +24,8 @@ All the code is tested in the following environment:
 | numpy | 1.23.x (hard-pinned by waymo) | Do not add a conflicting pin to `requirements.txt`; let the waymo package pick the version. |
 | numba | **>=0.59,<0.60** | First Numba release with Python 3.12 support; still compatible with numpy 1.23 (numba 0.61 drops numpy < 1.24). |
 | typing-extensions | >=4.10.0 | Pulled in transitively by torch 2.6. |
+| protobuf | **3.20.3** | `waymo_open_dataset.utils.frame_utils` calls `ParseFromString(bytearray(...))`, which the protobuf 4.x upb backend rejects (`TypeError: expected bytes, bytearray found`). TF 2.12 accepts `>=3.20.3,<5`. |
+| tensorflow-metadata | **<1.14** | 1.14+ requires protobuf >= 4.21.6; only used by `tensorflow-datasets`, which DetZero does not import. |
 
 ### Why not the latest waymo pip package?
 
@@ -109,6 +111,13 @@ pip install waymo-open-dataset-tf-2-12-0==1.6.4
 This pulls in `tensorflow==2.12`, `numpy==1.23`, `pandas==1.5.3`, `dask==2023.3.1` and other
 transitive deps automatically. Do **not** upgrade to 1.6.5+ while staying on PyTorch 2.6 — see the
 "Why not the latest waymo pip package?" note above.
+
+Then pin protobuf back to 3.x, otherwise the Waymo preprocessing fails with
+`TypeError: expected bytes, bytearray found`:
+```shell
+pip install protobuf==3.20.3 "tensorflow-metadata<1.14"
+pip check   # should report no broken requirements
+```
 
 **h. Install other required dependent libraries.**
 ```shell

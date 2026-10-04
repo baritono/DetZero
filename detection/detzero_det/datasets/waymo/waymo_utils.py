@@ -286,8 +286,9 @@ def process_single_tfrecord_multiprocessing(sequence_file:str, has_label:bool=Tr
 
 
 def save_data_worker(frame):
-    range_images, camera_projections, range_image_top_pose = \
-        frame_utils.parse_range_image_and_camera_projection(frame)
+    # waymo-open-dataset >= 1.4.x also returns segmentation labels as the third item
+    parsed = frame_utils.parse_range_image_and_camera_projection(frame)
+    range_images, camera_projections, range_image_top_pose = parsed[0], parsed[1], parsed[-1]
 
     points, cp_points, points_in_NLZ_flag, points_intensity, points_elongation = \
         convert_range_image_to_point_cloud(frame, range_images, camera_projections, range_image_top_pose)

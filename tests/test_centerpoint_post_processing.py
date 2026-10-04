@@ -39,8 +39,8 @@ def _ensure_importable(name):
 
 
 _ensure_importable("detzero_det.version")
-sys.modules["detzero_det.version"].__version__ = getattr(
-    sys.modules["detzero_det.version"], "__version__", "0.0.0+test")
+if not hasattr(sys.modules["detzero_det.version"], "__version__"):
+    setattr(sys.modules["detzero_det.version"], "__version__", "0.0.0+test")
 for _ext in (
     "detzero_utils.ops.iou3d_nms.iou3d_nms_cuda",
     "detzero_utils.ops.roiaware_pool3d.roiaware_pool3d_cuda",
@@ -54,7 +54,7 @@ try:
 except ImportError:
     sys.modules["spconv"] = _Stub("spconv")
     sys.modules["spconv.pytorch"] = _Stub("spconv.pytorch")
-    sys.modules["spconv"].pytorch = sys.modules["spconv.pytorch"]
+    setattr(sys.modules["spconv"], "pytorch", sys.modules["spconv.pytorch"])
 
 from detzero_det.models.centerpoint import CenterPoint  # noqa: E402
 

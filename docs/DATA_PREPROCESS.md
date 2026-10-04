@@ -3,30 +3,41 @@
 ## Dataset Preparation
 Currently we only provide the processing of Waymo dataset. 
 
-- please place the soft link of the data folder based on the following structure:
+- place (or soft-link) the raw tfrecords of **all splits** together in one flat `raw_data` folder under the
+  repository-level `data/waymo` (the split membership comes from `ImageSets/*.txt`):
 	```
-	detection
+	DetZero
 	├── data
 	│   ├── waymo
 	│   │   │── ImageSets
 	│   │   │── raw_data
-	│   │   │   │── segment-xxxxxxxx.tfrecord
+	│   │   │   │── segment-xxxxxxxx_with_camera_labels.tfrecord
 	│   │   │   │── ....
-	├── detzero_det
-	├── tools
+	├── detection
+	```
+	For example, with the official `training/`, `validation/`, `testing/` download folders:
+	```shell
+	mkdir -p data/waymo/raw_data
+	ln -s <WAYMO_ROOT>/{training,validation,testing}/*.tfrecord data/waymo/raw_data/
 	```
 
 - process waymo infos:
   ```shell
   cd detection
-  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_one_sweep.yaml --func create_waymo_infos
+  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_1sweep.yaml --func create_waymo_infos
   ```
+  Optional flags: `--splits train val` to skip the test split, and `--workers N` to limit how many
+  sequences are processed concurrently (each worker holds a whole tfrecord in memory, about 3 GB at peak;
+  the default is one per CPU core). The point clouds of train + val take about 830 GB, test another ~125 GB.
+  Sequences that already have a `.pkl` are skipped, so an interrupted run can simply be restarted.
 
 - generate database for gt-sampling
   ```
   cd detection
-  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_one_sweep.yaml --func create_waymo_database
+  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_1sweep.yaml --func create_waymo_database
   ```
+  The multi-sweep detector configs use their own databases, so repeat this with `waymo_3sweeps.yaml`
+  and `waymo_5sweeps.yaml` if you train those models. This step needs a CUDA GPU.
 
 ### NOTE
 We have provided a flexible data info structure and processing logic to satisfy single-frame or multi-frame (e.g., 2, 3, 5, ...) point clouds loading without further repeated pre-processings.

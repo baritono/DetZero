@@ -307,7 +307,8 @@ class WaymoObjectDataPrepare():
                 obj_info_tmp['matched'].append(frm_info['matched'][idx])
                 obj_info_tmp['gt_boxes_global'].append(frm_info['gt_boxes_global'][idx])
 
-                obj_pts = pts[obj_pts_mask[idx, :]]
+                # float32 halves the size of the object data (fully loaded into RAM by the refining datasets)
+                obj_pts = pts[obj_pts_mask[idx, :]].astype(np.float32)
                 obj_info_tmp['pts'].append(obj_pts)
 
                 data_info[obj_id] = obj_info_tmp

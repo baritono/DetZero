@@ -284,12 +284,12 @@ class CenterPoint(nn.Module):
                     thresh_list=post_process_cfg.RECALL_THRESH_LIST
                 )
 
-            record_dict: PredictionDict = {
-                'pred_boxes': final_boxes,
-                'pred_scores': final_scores,
-                'pred_labels': final_labels,
-            }
-            pred_dicts.append(record_dict)
+                record_dict: PredictionDict = {
+                    'pred_boxes': final_boxes,
+                    'pred_scores': final_scores,
+                    'pred_labels': final_labels,
+                }
+                pred_dicts.append(record_dict)
         else:
             pred_dicts = batch_dict['final_box_dicts']
             recall_dict = cast(RecallDict, {})

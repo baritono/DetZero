@@ -13,6 +13,7 @@ from detzero_utils import common_utils
 from detzero_utils.config_utils import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from detzero_utils.model_utils import load_params_from_file, load_params_with_optimizer
 from detzero_utils.optimize_utils import build_optimizer, build_scheduler
+from detzero_utils.wandb_utils import add_wandb_args, init_wandb
 
 from detzero_refine.datasets import build_dataloader
 from detzero_refine.models import build_network, model_fn_decorator
@@ -46,6 +47,8 @@ def parse_config():
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
     parser.add_argument('--early_stop', action='store_true', default=False, help='')
+
+    add_wandb_args(parser)
 
     args = parser.parse_args()
 
@@ -103,6 +106,9 @@ def main():
     log_config_to_file(cfg, logger=logger)
     if cfg.LOCAL_RANK == 0:
         os.system('cp %s %s' % (args.cfg_file, output_dir))
+
+    # before the SummaryWriter, so that wandb can mirror its scalars
+    wandb_run = init_wandb(args, cfg, output_dir, job_type='train-refining')
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
 
@@ -198,6 +204,9 @@ def main():
     )
     logger.info('**********************End evaluation %s/%s(%s)**********************' %
                 (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
+    if wandb_run is not None:
+        wandb_run.finish()
 
 
 if __name__ == '__main__':

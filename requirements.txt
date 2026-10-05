@@ -9,3 +9,6 @@ tabulate
 kornia
 scipy
 addict
+# Optional, for `train.py --wandb`. wandb>=0.26 requires protobuf>=5, which breaks
+# tensorflow 2.12 / waymo-open-dataset (they need protobuf 3.20.x).
+wandb>=0.17,<0.26

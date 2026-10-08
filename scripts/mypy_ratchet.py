@@ -66,7 +66,8 @@ def main() -> int:
         for f, (old, new) in sorted(regressions.items()):
             print(f"  {f}: {old} -> {new}")
         print(
-            "TO FIX: fix the new errors listed above in the files you changed.\n"
+            "TO FIX: fix the new errors listed above in the files you changed. The shape contracts in\n"
+            "detzero_utils/shape_types.py are the source of truth; make the code satisfy them.\n"
             "Do NOT widen an annotation to Any, do NOT add a code-less type-ignore comment, and do NOT run\n"
             "`--update` to absorb the regression. If the checker is genuinely wrong, use\n"
             "`# type: ignore[<code>]` with a one-line reason."

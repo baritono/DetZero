@@ -1,3 +1,5 @@
+from typing import Any, Optional, Tuple
+
 import torch
 import numpy as np
 
@@ -5,17 +7,22 @@ import numpy as np
 # from . import iou3d_nms_cuda
 
 from detzero_utils import common_utils
+from detzero_utils.shape_types import Float, Int, Tensor, TensorOrArray, shape_checked
 from detzero_utils.ops.iou3d_nms import iou3d_nms_cuda
 
 
-def boxes_bev_iou_cpu(boxes_a, boxes_b):
+@shape_checked
+def boxes_bev_iou_cpu(
+    boxes_a: Float[TensorOrArray, "N 7"],
+    boxes_b: Float[TensorOrArray, "M 7"],
+) -> Float[TensorOrArray, "N M"]:
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
-
+        ans_iou: (N, M) rotated BEV IoU, same backend (numpy / torch) as the input
     """
     boxes_a, is_numpy = common_utils.check_numpy_to_torch(boxes_a)
     boxes_b, is_numpy = common_utils.check_numpy_to_torch(boxes_b)
@@ -27,7 +34,11 @@ def boxes_bev_iou_cpu(boxes_a, boxes_b):
     return ans_iou.numpy() if is_numpy else ans_iou
 
 
-def boxes_iou3d_cpu(boxes_a, boxes_b):
+@shape_checked
+def boxes_iou3d_cpu(
+    boxes_a: Float[Tensor, "N 7"],
+    boxes_b: Float[Tensor, "M 7"],
+) -> Float[Tensor, "N M"]:
 
     # height overlap
     boxes_a_height_max = (boxes_a[:, 2] + boxes_a[:, 5] / 2).reshape(-1, 1)
@@ -54,11 +65,15 @@ def boxes_iou3d_cpu(boxes_a, boxes_b):
     return iou3d
 
 
-def boxes_iou_bev(boxes_a, boxes_b):
+@shape_checked
+def boxes_iou_bev(
+    boxes_a: Float[Tensor, "N 7"],
+    boxes_b: Float[Tensor, "M 7"],
+) -> Float[Tensor, "N M"]:
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
         ans_iou: (N, M)
@@ -71,11 +86,15 @@ def boxes_iou_bev(boxes_a, boxes_b):
     return ans_iou
 
 
-def boxes_iou3d_gpu(boxes_a, boxes_b):
+@shape_checked
+def boxes_iou3d_gpu(
+    boxes_a: Float[Tensor, "N 7"],
+    boxes_b: Float[Tensor, "M 7"],
+) -> Float[Tensor, "N M"]:
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
         ans_iou: (N, M)
@@ -107,11 +126,15 @@ def boxes_iou3d_gpu(boxes_a, boxes_b):
     return iou3d
 
 
-def boxes_giou3d_gpu(boxes_a, boxes_b):
+@shape_checked
+def boxes_giou3d_gpu(
+    boxes_a: Float[Tensor, "N 7"],
+    boxes_b: Float[Tensor, "M 7"],
+) -> Float[Tensor, "N M"]:
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
         ans_iou: (N, M)
@@ -151,12 +174,19 @@ def boxes_giou3d_gpu(boxes_a, boxes_b):
     return giou3d
 
 
-def nms_gpu(boxes, scores, thresh, pre_maxsize=None, **kwargs):
+@shape_checked
+def nms_gpu(
+    boxes: Float[Tensor, "N 7"],
+    scores: Float[Tensor, " N"],
+    thresh: float,
+    pre_maxsize: Optional[int] = None,
+    **kwargs: Any,
+) -> Tuple[Int[Tensor, " K"], None]:
     """
     :param boxes: (N, 7) [x, y, z, dx, dy, dz, heading]
     :param scores: (N)
     :param thresh:
-    :return:
+    :return: (keep, None) where keep is (K,) indices into ``boxes``, K <= N
     """
     assert boxes.shape[1] == 7
     order = scores.sort(0, descending=True)[1]
@@ -170,12 +200,18 @@ def nms_gpu(boxes, scores, thresh, pre_maxsize=None, **kwargs):
     return order[keep[:num_out].cuda()].contiguous(), None
 
 
-def nms_normal_gpu(boxes, scores, thresh, **kwargs):
+@shape_checked
+def nms_normal_gpu(
+    boxes: Float[Tensor, "N 7"],
+    scores: Float[Tensor, " N"],
+    thresh: float,
+    **kwargs: Any,
+) -> Tuple[Int[Tensor, " K"], None]:
     """
     :param boxes: (N, 7) [x, y, z, dx, dy, dz, heading]
     :param scores: (N)
     :param thresh:
-    :return:
+    :return: (keep, None) where keep is (K,) indices into ``boxes``, K <= N
     """
     assert boxes.shape[1] == 7
     order = scores.sort(0, descending=True)[1]

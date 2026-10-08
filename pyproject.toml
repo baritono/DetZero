@@ -10,6 +10,7 @@ extend-exclude = ["data", "**/build", "**/*.egg-info"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 ignore = [
+    "F722",  # jaxtyping shape strings ("N 7") are not forward references
     "E501",  # legacy code has long lines; the formatter is not enforced repo-wide yet
     "E731",
     "E741",
@@ -25,12 +26,23 @@ ignore_missing_imports = true
 follow_imports = "silent"
 warn_unused_ignores = true
 check_untyped_defs = false
-# Files type-checked by scripts/mypy_ratchet.py. Grow this list as modules gain
-# annotations; legacy errors in listed files are pinned per file in
-# .mypy-baseline.json and the ratchet fails if any count goes up.
+# Modules annotated with shape contracts, plus the tests. Grow this list as more
+# modules are annotated. Legacy errors in these files are pinned per file in
+# .mypy-baseline.json; scripts/mypy_ratchet.py fails if any count goes up.
 files = [
     "tests",
     "scripts",
+    "utils/detzero_utils/shape_types.py",
+    "utils/detzero_utils/box_utils.py",
+    "utils/detzero_utils/common_utils.py",
+    "utils/detzero_utils/ops/iou3d_nms/iou3d_nms_utils.py",
+    "utils/detzero_utils/ops/roiaware_pool3d/roiaware_pool3d_utils.py",
+    "detection/detzero_det/utils/box_coder_utils.py",
+    "detection/detzero_det/utils/centernet_utils.py",
+    "detection/detzero_det/utils/loss_utils.py",
+    "detection/detzero_det/utils/model_nms_utils.py",
+    "tracking/detzero_track/utils/transform_utils.py",
+    "refining/detzero_refine/utils/data_utils.py",
 ]
 
 [tool.pytest.ini_options]
@@ -39,4 +51,8 @@ addopts = "-q"
 markers = [
     "cuda: needs a GPU and the compiled CUDA extensions",
     "slow: long-running; excluded from the pre-merge gate",
+]
+filterwarnings = [
+    # typing.Sequence etc. are required while Python 3.8 is supported.
+    "ignore::beartype.roar.BeartypeDecorHintPep585DeprecationWarning",
 ]

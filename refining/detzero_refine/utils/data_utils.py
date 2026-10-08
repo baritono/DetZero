@@ -1,9 +1,14 @@
 import random
+from typing import Sequence, Union
 
 import numpy as np
 
+from detzero_utils.shape_types import Float, shape_checked
 
-def rotate_yaw(yaw):
+
+@shape_checked
+def rotate_yaw(yaw: Union[float, np.floating]) -> Float[np.ndarray, "3 3"]:
+    """Rotation matrix R such that ``pts @ R.T`` rotates points by ``-yaw`` about z."""
     return np.array([[np.cos(yaw), np.sin(yaw), 0],
                     [-np.sin(yaw), np.cos(yaw), 0],
                     [0, 0, 1]], dtype=np.float32)
@@ -30,7 +35,9 @@ def sample_points(pts, sample_num=4096, replace=False):
     return pts
 
 
-def limit_heading_range(angle):
+@shape_checked
+def limit_heading_range(angle: Float[np.ndarray, "*shape"]) -> Float[np.ndarray, "*shape"]:
+    """Wrap headings into [-pi, pi) in place."""
     while (angle >= np.pi).sum() > 0:
         mask = (angle >= np.pi).nonzero()[0]
         angle[mask] -= 2*np.pi
@@ -42,7 +49,12 @@ def limit_heading_range(angle):
     return angle
 
 
-def world_to_lidar(boxes, poses):
+@shape_checked
+def world_to_lidar(
+    boxes: Union[Float[np.ndarray, "T box_dim"], Sequence[Float[np.ndarray, " box_dim"]]],
+    poses: Union[Float[np.ndarray, "T 4 4"], Sequence[Float[np.ndarray, "4 4"]]],
+) -> Float[np.ndarray, "T 7"]:
+    """Transform per-frame world boxes into each frame's LiDAR coordinates."""
     boxes = np.stack(boxes, axis=0)
     poses = np.stack(poses, axis=0)
     r_t = np.linalg.inv(poses)
@@ -106,7 +118,12 @@ def init_coords_transform(init_box, pts, traj=None, traj_gt=None):
     return init_box, pts, traj, traj_gt
 
 
-def box_coords_transform(traj, init_box):
+@shape_checked
+def box_coords_transform(
+    traj: Float[np.ndarray, "T box_dim"],
+    init_box: Float[np.ndarray, " init_dim"],
+) -> Float[np.ndarray, "T box_dim"]:
+    """Inverse of the init-box transform: map ``traj`` back to the original frame (in place)."""
     traj[:, :3] = traj[:, :3] @ np.linalg.inv(rotate_yaw(init_box[6]).T)
     traj[:, :3] += init_box[:3]
     

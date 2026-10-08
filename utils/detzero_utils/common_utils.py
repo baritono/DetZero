@@ -11,10 +11,16 @@ from tqdm import tqdm
 from functools import partial
 import concurrent.futures as futures
 
+from typing import Tuple
+
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+
+from detzero_utils.shape_types import (
+    Bool, Float, FloatVector, Int, Shaped, Tensor, TensorOrArray, shape_checked,
+)
 
 
 def create_logger(log_file=None, rank=0, log_level=logging.INFO):
@@ -160,13 +166,24 @@ def clear_duplicate_annos(result, raw_infos):
     return new_res
 
 
-def check_numpy_to_torch(x):
+def check_numpy_to_torch(
+    x: Shaped[TensorOrArray, "*shape"],
+) -> Tuple[Shaped[Tensor, "*shape"], bool]:
+    """Convert a numpy array to a float32 tensor; pass tensors through.
+
+    Returns:
+        (tensor, is_numpy): ``is_numpy`` tells the caller to convert back.
+    """
     if isinstance(x, np.ndarray):
         return torch.from_numpy(x).float(), True
     return x, False
 
 
-def limit_period(val, offset=0.5, period=np.pi):
+@shape_checked
+def limit_period(
+    val: Float[TensorOrArray, "*shape"], offset: float = 0.5, period: float = np.pi,
+) -> Float[TensorOrArray, "*shape"]:
+    """Wrap ``val`` into ``[-offset * period, (1 - offset) * period)``, element-wise."""
     val, is_numpy = check_numpy_to_torch(val)
     ans = val - torch.floor(val / period + offset) * period
     return ans.numpy() if is_numpy else ans
@@ -186,7 +203,9 @@ def keep_arrays_by_name(gt_names, used_classes):
     return inds
 
 
-def cart2cylinder(points):
+@shape_checked
+def cart2cylinder(points: Float[TensorOrArray, "N 3"]) -> Float[TensorOrArray, "N 3"]:
+    """[x, y, z] -> [r, phi, z]."""
     is_numpy = type(points) == np.ndarray
     if is_numpy:
         points = torch.from_numpy(points)
@@ -201,7 +220,9 @@ def cart2cylinder(points):
     return points
 
 
-def cylinder2cart(points):
+@shape_checked
+def cylinder2cart(points: Float[TensorOrArray, "N 3"]) -> Float[TensorOrArray, "N 3"]:
+    """[r, phi, z] -> [x, y, z]."""
     is_numpy = type(points) == np.ndarray
     if is_numpy:
         points = torch.from_numpy(points)
@@ -217,12 +238,17 @@ def cylinder2cart(points):
     return points
 
 
-def rotate_points_along_z(points, angle):
+@shape_checked
+def rotate_points_along_z(
+    points: Float[TensorOrArray, "B N point_dim"],
+    angle: Float[TensorOrArray, " B"],
+) -> Float[TensorOrArray, "B N point_dim"]:
     """
     Args:
         points: (B, N, 3 + C)
         angle: (B), angle along z-axis, angle increases x ==> y
     Returns:
+        points_rot: (B, N, 3 + C), same backend (numpy / torch) as ``points``
     """
     points, is_numpy = check_numpy_to_torch(points)
     angle, _ = check_numpy_to_torch(angle)
@@ -244,20 +270,32 @@ def rotate_points_along_z(points, angle):
     return points_rot.numpy() if is_numpy else points_rot
 
 
-def mask_points_by_range(points, limit_range):
+@shape_checked
+def mask_points_by_range(
+    points: Float[TensorOrArray, "N point_dim"],
+    limit_range: FloatVector,
+) -> Bool[TensorOrArray, " N"]:
+    """BEV range mask; ``limit_range`` is [minx, miny, minz, maxx, maxy, maxz]."""
     mask = (points[:, 0] >= limit_range[0]) & (points[:, 0] <= limit_range[3]) \
            & (points[:, 1] >= limit_range[1]) & (points[:, 1] <= limit_range[4])
     return mask
 
 
-def get_voxel_centers(voxel_coords, downsample_times, voxel_size, point_cloud_range):
+@shape_checked
+def get_voxel_centers(
+    voxel_coords: Int[Tensor, "N 3"],
+    downsample_times: float,
+    voxel_size: FloatVector,
+    point_cloud_range: FloatVector,
+) -> Float[Tensor, "N 3"]:
     """
     Args:
-        voxel_coords: (N, 3)
+        voxel_coords: (N, 3) integer voxel indices in [z, y, x] order
         downsample_times:
         voxel_size:
         point_cloud_range:
-    Returns:s
+    Returns:
+        voxel_centers: (N, 3) metric voxel centres in [x, y, z] order
     """
     assert voxel_coords.shape[1] == 3
     voxel_centers = voxel_coords[:, [2, 1, 0]].float()  # (xyz)

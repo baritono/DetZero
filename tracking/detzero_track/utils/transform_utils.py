@@ -1,7 +1,14 @@
+from typing import Union
+
 import numpy as np
 
+from detzero_utils.shape_types import Float, shape_checked
 
-def yaw_filter(yaw):
+
+@shape_checked
+def yaw_filter(
+    yaw: Union[Float[np.ndarray, "*shape"], float, np.floating],
+) -> Union[Float[np.ndarray, "*shape"], float, np.floating]:
     """
     filter the heading into -pi ~ pi
     Args:
@@ -25,7 +32,8 @@ def yaw_filter(yaw):
     return yaw
 
 
-def get_inverse_transform_mat(src_pose):
+@shape_checked
+def get_inverse_transform_mat(src_pose: Float[np.ndarray, "4 4"]) -> Float[np.ndarray, "4 4"]:
     """ 
     Args:
         src_pose: 4*4 transform pose include rotate matrix and translation
@@ -40,14 +48,19 @@ def get_inverse_transform_mat(src_pose):
     return reverse_pose
 
 
-def transform_boxes3d(boxes, pose, inverse=False):
+@shape_checked
+def transform_boxes3d(
+    boxes: Float[np.ndarray, "N box_dim"],
+    pose: Float[np.ndarray, "4 4"],
+    inverse: bool = False,
+) -> Float[np.ndarray, "N 7"]:
     """
     Args:
-        boxes: N*7 x,y,z,dx,dy,dz,heading
+        boxes: (N, 7 + C) x,y,z,dx,dy,dz,heading,...; only the first 7 columns are used
         pose: 4*4 transform pose include rotate matrix and translation
         inverse: using inverse of transform pose if True, Fasle otherwise
     Returns:
-        transformed_boxes: N*7 x,y,z,dx,dy,dz,heading
+        transformed_boxes: (N, 7) x,y,z,dx,dy,dz,heading
     """
     center = boxes[:, :3]
     center = np.concatenate([center, np.ones((center.shape[0], 1))], axis=-1)

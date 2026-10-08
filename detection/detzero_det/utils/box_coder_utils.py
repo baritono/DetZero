@@ -1,5 +1,9 @@
+from typing import Optional
+
 import numpy as np
 import torch
+
+from detzero_utils.shape_types import Float, Int, Tensor, shape_checked
 
 
 class ResidualCoder(object):
@@ -10,14 +14,19 @@ class ResidualCoder(object):
         if self.encode_angle_by_sincos:
             self.code_size += 1
 
-    def encode_torch(self, boxes, anchors):
+    @shape_checked
+    def encode_torch(
+        self,
+        boxes: Float[Tensor, "*batch box_dim"],
+        anchors: Float[Tensor, "*batch box_dim"],
+    ) -> Float[Tensor, "*batch code_size"]:
         """
         Args:
             boxes: (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
             anchors: (N, 7 + C) [x, y, z, dx, dy, dz, heading or *[cos, sin], ...]
 
         Returns:
-
+            box_encodings: (N, code_size), code_size = 7 + C (+1 if encode_angle_by_sincos)
         """
         anchors[:, 3:6] = torch.clamp_min(anchors[:, 3:6], min=1e-5)
         boxes[:, 3:6] = torch.clamp_min(boxes[:, 3:6], min=1e-5)
@@ -42,14 +51,19 @@ class ResidualCoder(object):
         cts = [g - a for g, a in zip(cgs, cas)]
         return torch.cat([xt, yt, zt, dxt, dyt, dzt, *rts, *cts], dim=-1)
 
-    def decode_torch(self, box_encodings, anchors):
+    @shape_checked
+    def decode_torch(
+        self,
+        box_encodings: Float[Tensor, "*batch code_size"],
+        anchors: Float[Tensor, "*batch box_dim"],
+    ) -> Float[Tensor, "*batch box_dim"]:
         """
         Args:
             box_encodings: (B, N, 7 + C) or (N, 7 + C) [x, y, z, dx, dy, dz, heading or *[cos, sin], ...]
             anchors: (B, N, 7 + C) or (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
 
         Returns:
-
+            boxes: same leading dims as the inputs, (..., 7 + C)
         """
         xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
         if not self.encode_angle_by_sincos:
@@ -150,7 +164,13 @@ class PointResidualCoder(object):
             self.mean_size = torch.from_numpy(np.array(kwargs['mean_size'])).cuda().float()
             assert self.mean_size.min() > 0
 
-    def encode_torch(self, gt_boxes, points, gt_classes=None):
+    @shape_checked
+    def encode_torch(
+        self,
+        gt_boxes: Float[Tensor, "N box_dim"],
+        points: Float[Tensor, "N 3"],
+        gt_classes: Optional[Int[Tensor, " N"]] = None,
+    ) -> Float[Tensor, "N code_size"]:
         """
         Args:
             gt_boxes: (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
@@ -186,14 +206,20 @@ class PointResidualCoder(object):
         cts = [g for g in cgs]
         return torch.cat([xt, yt, zt, dxt, dyt, dzt, torch.cos(rg), torch.sin(rg), *cts], dim=-1)
 
-    def decode_torch(self, box_encodings, points, pred_classes=None):
+    @shape_checked
+    def decode_torch(
+        self,
+        box_encodings: Float[Tensor, "N code_size"],
+        points: Float[Tensor, "N 3"],
+        pred_classes: Optional[Int[Tensor, " N"]] = None,
+    ) -> Float[Tensor, "N box_dim"]:
         """
         Args:
             box_encodings: (N, 8 + C) [x, y, z, dx, dy, dz, cos, sin, ...]
-            points: [x, y, z]
+            points: (N, 3) [x, y, z]
             pred_classes: (N) [1, num_classes]
         Returns:
-
+            boxes: (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
         """
         xt, yt, zt, dxt, dyt, dzt, cost, sint, *cts = torch.split(box_encodings, 1, dim=-1)
         xa, ya, za = torch.split(points, 1, dim=-1)

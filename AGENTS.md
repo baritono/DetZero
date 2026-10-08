@@ -13,14 +13,33 @@ Procedures live in `docs/`; this file is the table of contents.
 | Task | Command |
 |---|---|
 | Install dev tools | `pip install -r requirements-dev.txt` |
-| Lint (harness code) | `ruff check tests scripts` |
+| Lint (harness code) | `ruff check tests scripts utils/detzero_utils/shape_types.py` |
 | Types | `python scripts/mypy_ratchet.py` |
 | Tests (CPU) | `python -m pytest -q -m "not slow and not cuda"` |
 | House rules | `semgrep scan --config .semgrep/ --metrics=off --baseline-commit origin/main` |
 | Git hooks | `pre-commit install` |
 
 Tests need no GPU and no compiled extensions: `tests/conftest.py` puts the packages on
-`sys.path` and stubs the CUDA extensions.
+`sys.path`, stubs the CUDA extensions and turns on shape checking.
+
+## Shape contracts
+Most bugs here are shape bugs, so tensor shapes are part of the type.
+- Annotate every function that takes or returns a tensor/array with a jaxtyping shape,
+  imported **only** from `detzero_utils.shape_types`, and decorate it with `@shape_checked`:
+  ```python
+  from detzero_utils.shape_types import Float, Tensor, TensorOrArray, shape_checked
+
+  @shape_checked
+  def boxes_iou_normal(boxes_a: Float[Tensor, "N 4"], boxes_b: Float[Tensor, "M 4"]) -> Float[Tensor, "N M"]:
+  ```
+- Reuse the dimension names in the `shape_types` docstring (`N`, `M`, `B`, `K`, `T`,
+  `box_dim`, `point_dim`, `code_size`, `H`, `W`, ...). Same name means same size within a call.
+- Write a single dimension with a leading space: `Float[Tensor, " N"]`.
+- Functions that accept numpy *or* torch (via `check_numpy_to_torch`) use `TensorOrArray`.
+- `@shape_checked` is a no-op unless `DETZERO_SHAPE_CHECK=1` (tests set it). Never turn it
+  off to make a test pass; a contract failure names the dimension that is wrong.
+- Exemplars: `utils/detzero_utils/box_utils.py`, `detection/detzero_det/utils/box_coder_utils.py`.
+- When you annotate a new module, add it to `[tool.mypy].files` in `pyproject.toml`.
 
 ## Rules
 - Never widen a type to `Any` to silence a type error. Fix the type.
@@ -42,7 +61,7 @@ Tests need no GPU and no compiled extensions: `tests/conftest.py` puts the packa
 
 ## Done means
 All of these pass locally, and you paste their output:
-`ruff check tests scripts`, `python scripts/mypy_ratchet.py`,
+`ruff check tests scripts utils/detzero_utils/shape_types.py`, `python scripts/mypy_ratchet.py`,
 `python -m pytest -q -m "not slow and not cuda"`.
 
 ## More

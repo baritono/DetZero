@@ -1,5 +1,8 @@
 """Shared pytest setup.
 
+* Turns on runtime shape-contract checking (``DETZERO_SHAPE_CHECK=1``) *before*
+  any DetZero module is imported, so every ``@shape_checked`` function is
+  enforced in tests.
 * Puts the four in-repo packages on ``sys.path`` so tests run from a plain
   checkout without ``python setup.py develop``.
 * Provides ``<pkg>.version`` when ``setup.py develop`` has not generated it.
@@ -9,9 +12,12 @@
 """
 
 import importlib
+import os
 import sys
 import types
 from pathlib import Path
+
+os.environ.setdefault("DETZERO_SHAPE_CHECK", "1")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 for sub in ("utils", "detection", "tracking", "refining"):

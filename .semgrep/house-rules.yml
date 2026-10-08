@@ -2,6 +2,47 @@
 # the violation: state the problem, the fix, an exemplar, and the wrong fix.
 # CI runs these diff-aware (only findings introduced by the PR fail).
 rules:
+  - id: tensor-param-needs-shape-contract
+    languages: [python]
+    severity: ERROR
+    paths:
+      include: ["/utils/**", "/detection/**", "/tracking/**", "/refining/**"]
+      exclude: ["/tests/**"]
+    pattern-either:
+      - pattern: |
+          def $F(..., $ARG: torch.Tensor, ...): ...
+      - pattern: |
+          def $F(..., $ARG: Tensor, ...): ...
+      - pattern: |
+          def $F(..., $ARG: np.ndarray, ...): ...
+      - pattern: |
+          def $F(...) -> torch.Tensor: ...
+      - pattern: |
+          def $F(...) -> np.ndarray: ...
+    message: >-
+      SHAPE CONTRACT MISSING: `$ARG` / the return value of `$F` is annotated with a bare
+      tensor/array type. TO FIX: annotate dtype and shape with jaxtyping via
+      `detzero_utils.shape_types`, e.g. `boxes: Float[Tensor, "N 7"]`, and decorate the
+      function with `@shape_checked`. Reuse the dimension names documented in
+      utils/detzero_utils/shape_types.py (N, M, B, box_dim, point_dim, ...). See
+      `boxes_iou_normal` in utils/detzero_utils/box_utils.py for the pattern.
+      Do NOT drop the annotation and do NOT use `Any` to silence this.
+
+  - id: shape-types-import-path
+    languages: [python]
+    severity: ERROR
+    paths:
+      exclude: ["/utils/detzero_utils/shape_types.py"]
+    pattern-either:
+      - pattern: from jaxtyping import $X
+      - pattern: import jaxtyping
+    message: >-
+      Import shape annotations from `detzero_utils.shape_types`, not from jaxtyping directly.
+      TO FIX: `from detzero_utils.shape_types import Float, Int, Tensor, shape_checked`.
+      shape_types keeps runtime checking opt-in (DETZERO_SHAPE_CHECK) and provides a
+      fallback when jaxtyping is not installed; a direct import breaks production installs.
+      Tests may use `pytest.importorskip("jaxtyping")` when they need jaxtyping's exceptions.
+
   - id: no-blanket-type-ignore
     languages: [python]
     severity: ERROR

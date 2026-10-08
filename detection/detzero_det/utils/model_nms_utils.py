@@ -1,9 +1,24 @@
+from typing import Any, Optional, Tuple
+
 import torch
+
+from detzero_utils.shape_types import Float, Int, Tensor, shape_checked
 
 from detzero_utils.ops.iou3d_nms import iou3d_nms_utils
 
 
-def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+@shape_checked
+def class_agnostic_nms(
+    box_scores: Float[Tensor, " N"],
+    box_preds: Float[Tensor, "N box_dim"],
+    nms_config: Any,
+    score_thresh: Optional[float] = None,
+) -> Tuple[Any, Float[Tensor, " K"]]:
+    """
+    Returns:
+        selected: (K,) indices into the *input* boxes (an empty list when nothing is kept
+            and ``score_thresh`` is None), selected_scores: (K,)
+    """
     src_box_scores = box_scores
     if score_thresh is not None:
         scores_mask = (box_scores >= score_thresh)
@@ -25,7 +40,13 @@ def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
     return selected, src_box_scores[selected]
 
 
-def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
+@shape_checked
+def multi_classes_nms(
+    cls_scores: Float[Tensor, "N num_class"],
+    box_preds: Float[Tensor, "N box_dim"],
+    nms_config: Any,
+    score_thresh: Optional[float] = None,
+) -> Tuple[Float[Tensor, " K"], Int[Tensor, " K"], Float[Tensor, "K box_dim"]]:
     """
     Args:
         cls_scores: (N, num_class)
@@ -33,6 +54,7 @@ def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
         nms_config:
         score_thresh:
     Returns:
+        pred_scores: (K,), pred_labels: (K,) 0-based class index, pred_boxes: (K, 7 + C)
     """
     pred_scores, pred_labels, pred_boxes = [], [], []
     for k in range(cls_scores.shape[1]):

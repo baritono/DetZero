@@ -1,0 +1,26 @@
+# DetZero house rules. Messages are written for the agent that is about to fix
+# the violation: state the problem, the fix, an exemplar, and the wrong fix.
+# CI runs these diff-aware (only findings introduced by the PR fail).
+rules:
+  - id: no-blanket-type-ignore
+    languages: [python]
+    severity: ERROR
+    pattern-regex: '#\s*type:\s*ignore(?!\[)'
+    message: >-
+      BLANKET `type: ignore` is not permitted. TO FIX: narrow it to a specific error code,
+      e.g. `# type: ignore[arg-type]`, and add a one-line comment saying why the checker is
+      wrong. If you cannot name the error code, the type is genuinely wrong: fix the code.
+
+  - id: no-deprecated-numpy-alias
+    languages: [python]
+    severity: ERROR
+    pattern-either:
+      - pattern: np.bool
+      - pattern: np.int
+      - pattern: np.float
+      - pattern: np.str
+      - pattern: np.object
+    message: >-
+      Deprecated NumPy scalar alias (removed in NumPy 1.24). TO FIX: use the builtin
+      (`bool`, `int`, `float`, `str`, `object`) or an explicit dtype (`np.bool_`, `np.int64`,
+      `np.float32`). Do NOT pin NumPy lower to keep the alias working.

@@ -124,6 +124,16 @@ pip check   # should report no broken requirements
 cd DetZero && pip install -r requirements.txt
 ```
 
+> Note: the visualization tools under `daemon/visualizer.py` and
+> `utils/detzero_utils/visualize_utils` additionally require
+> [`open3d`](https://pypi.org/project/open3d/). It is not in `requirements.txt`
+> because training, tracking, refining and evaluation don't need it, and it pulls in
+> a large Jupyter / Dash dependency tree. It resolves cleanly against the pins above,
+> so install it only if you need the visualizer:
+> ```shell
+> pip install open3d
+> ```
+
 **i. Compile DetZero's own CUDA / C++ extensions.**
 ```shell
 cd DetZero/utils && python setup.py develop

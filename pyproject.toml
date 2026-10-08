@@ -1,0 +1,42 @@
+# Tooling config for the agent harness (see AGENTS.md).
+# The four Python packages keep their own setup.py; this file only configures
+# linters, type checkers and tests.
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+extend-exclude = ["data", "**/build", "**/*.egg-info"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # legacy code has long lines; the formatter is not enforced repo-wide yet
+    "E731",
+    "E741",
+    "I001",  # import order: legacy files are not sorted yet
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]
+
+[tool.mypy]
+mypy_path = "utils:detection:tracking:refining"
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_unused_ignores = true
+check_untyped_defs = false
+# Files type-checked by scripts/mypy_ratchet.py. Grow this list as modules gain
+# annotations; legacy errors in listed files are pinned per file in
+# .mypy-baseline.json and the ratchet fails if any count goes up.
+files = [
+    "tests",
+    "scripts",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "cuda: needs a GPU and the compiled CUDA extensions",
+    "slow: long-running; excluded from the pre-merge gate",
+]

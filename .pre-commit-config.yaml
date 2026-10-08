@@ -8,7 +8,7 @@ repos:
       - id: ruff
         # Legacy modules are not ruff-clean yet; lint the harness code strictly.
         # (The agent PostToolUse hook lints edits to any file, diff-aware.)
-        files: ^(tests/|scripts/)
+        files: ^(tests/|scripts/|utils/detzero_utils/shape_types\.py$)
 
   - repo: local
     hooks:
@@ -19,7 +19,7 @@ repos:
         files: \.(pth|pt|ckpt|pkl|npy|bin)$
 
       - id: mypy-ratchet
-        name: mypy ratchet
+        name: mypy ratchet (shape-contract modules)
         entry: python scripts/mypy_ratchet.py
         language: system
         pass_filenames: false

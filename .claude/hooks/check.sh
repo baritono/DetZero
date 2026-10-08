@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PostToolUse evidence gate: lint the file that was just edited and, for modules
-# that are type-checked, re-check types. Must stay fast (~2 s).
+# that carry shape contracts, re-check types. Must stay fast (~2 s).
 # Exit 2 sends stderr back to the agent as a blocking error it has to fix.
 set -uo pipefail
 
@@ -33,7 +33,7 @@ if [ "$(printf '%s' "$now" | grep -c ': [EF][0-9]')" -gt "$(printf '%s' "$head" 
   out="$now"$'\n'"Your edit added lint findings to $rel (fix the new ones; do not add noqa)."
 fi
 
-# Type-checked modules (listed in pyproject.toml [tool.mypy].files): ratchet must hold.
+# Shape-contract modules (listed in pyproject.toml [tool.mypy].files): ratchet must hold.
 if grep -qF "\"$rel\"" pyproject.toml && python3 -c 'import mypy' 2>/dev/null; then
   ratchet=$(python3 scripts/mypy_ratchet.py 2>&1) || out="$out"$'\n'"$ratchet"
 fi

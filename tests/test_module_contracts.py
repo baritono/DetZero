@@ -1,4 +1,4 @@
-"""Behaviour of detection / tracking / refining helpers (CPU only)."""
+"""Shape contracts on detection / tracking / refining helpers (CPU only)."""
 
 import numpy as np
 import pytest
@@ -72,6 +72,14 @@ def test_weighted_smooth_l1_shapes(monkeypatch):
     loss_fn = loss_utils.WeightedSmoothL1Loss(code_weights=[1.0] * 7)
     loss = loss_fn(torch.rand(2, 10, 7), torch.rand(2, 10, 7), torch.rand(2, 10))
     assert loss.shape == (2, 10, 7)
+
+
+def test_corner_loss_rejects_mismatched_counts():
+    from detzero_utils import shape_types
+    if not shape_types.SHAPE_CHECK_ENABLED:
+        pytest.skip("shape checking disabled")
+    with pytest.raises(Exception):
+        loss_utils.get_corner_loss_lidar(torch.rand(3, 7), torch.rand(4, 7))
 
 
 def test_corner_loss_is_zero_for_identical_and_flipped_boxes():

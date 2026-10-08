@@ -1,10 +1,12 @@
 """Property-based tests for geometry helpers.
 
 Each test states an invariant that must hold for *all* inputs; Hypothesis
-searches for counter-examples and shrinks them.
+searches for counter-examples and shrinks them.  Shape contracts are enforced
+on every call (see conftest), so these also exercise the annotations.
 """
 
 import numpy as np
+import pytest
 import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -144,3 +146,24 @@ def test_enlarge_box3d_only_touches_dims(boxes, extra):
     np.testing.assert_allclose(out[:, 6].numpy(), boxes[:, 6])
     np.testing.assert_allclose(out[:, 3:6].numpy(), boxes[:, 3:6] + np.array(extra, dtype=np.float32), rtol=1e-6)
 
+
+# --------------------------------------------------------------------------- #
+# Contracts reject wrong shapes at the call site
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize("bad", [np.zeros((4,), np.float32), np.zeros((2, 4, 7), np.float32),
+                                 np.zeros((4, 7), np.int64)])
+def test_boxes_to_corners_rejects_bad_input(bad):
+    from detzero_utils import shape_types
+    if not shape_types.SHAPE_CHECK_ENABLED:
+        pytest.skip("shape checking disabled")
+    with pytest.raises(Exception, match="boxes3d"):
+        box_utils.boxes_to_corners_3d(bad)
+
+
+def test_rotate_points_rejects_mismatched_batch():
+    from detzero_utils import shape_types
+    if not shape_types.SHAPE_CHECK_ENABLED:
+        pytest.skip("shape checking disabled")
+    with pytest.raises(Exception):
+        common_utils.rotate_points_along_z(np.zeros((2, 5, 3), np.float32), np.zeros(3, np.float32))

@@ -2,19 +2,29 @@
 # update radius refered to CornerNet Issue
 # https://github.com/princeton-vl/CornerNet/commit/3e71377b45098f9cea26d5a39de0138174c90d49
 
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numba
 import numpy as np
 import torch
 import torch.nn.functional as F
 
+from detzero_utils.shape_types import Float, FloatVector, Int, Shaped, Tensor, shape_checked
 
-def gaussian_radius(height, width, min_overlap=0.5):
+
+@shape_checked
+def gaussian_radius(
+    height: Float[Tensor, " N"],
+    width: Float[Tensor, " N"],
+    min_overlap: float = 0.5,
+) -> Float[Tensor, " N"]:
     """
     Args:
         height: (N)
         width: (N)
         min_overlap:
     Returns:
+        radius: (N) Gaussian radius per object, in feature-map cells
     """
     a1 = 1
     b1 = (height + width)
@@ -117,7 +127,13 @@ def _circle_nms(boxes, min_radius, post_max_size=83):
     return keep
 
 
-def _gather_feat(feat, ind, mask=None):
+@shape_checked
+def _gather_feat(
+    feat: Shaped[Tensor, "B L D"],
+    ind: Int[Tensor, "B K"],
+    mask: Optional[Shaped[Tensor, "B K"]] = None,
+) -> Union[Shaped[Tensor, "B K D"], Shaped[Tensor, "M D"]]:
+    """Gather ``feat[b, ind[b, k], :]``; flattened to (M, D) over ``mask`` if given."""
     dim = feat.size(2)
     ind = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
     feat = feat.gather(1, ind)
@@ -128,14 +144,32 @@ def _gather_feat(feat, ind, mask=None):
     return feat
 
 
-def _transpose_and_gather_feat(feat, ind):
+@shape_checked
+def _transpose_and_gather_feat(
+    feat: Shaped[Tensor, "B D H W"],
+    ind: Int[Tensor, "B K"],
+) -> Shaped[Tensor, "B K D"]:
+    """Gather per-object features from a dense map; ``ind`` indexes the flattened H*W grid."""
     feat = feat.permute(0, 2, 3, 1).contiguous()
     feat = feat.view(feat.size(0), -1, feat.size(3))
     feat = _gather_feat(feat, ind)
     return feat
 
 
-def _topk(scores, batch_iou=None, K=40, **kwargs):
+@shape_checked
+def _topk(
+    scores: Float[Tensor, "B num_class H W"],
+    batch_iou: Optional[Float[Tensor, "B ..."]] = None,
+    K: int = 40,
+    **kwargs: Any,
+) -> Tuple[Tensor, ...]:
+    """Top-K peaks over all classes of a heatmap.
+
+    Returns:
+        topk_score: (B, K), topk_inds: (B, K) flat H*W index, topk_classes: (B, K),
+        topk_ys: (B, K), topk_xs: (B, K) and, when ``kwargs['id_map']`` is given,
+        id_maps: (B, K).
+    """
     batch, num_class, height, width = scores.size()
     scores = scores.flatten(2, 3)
     if batch_iou is not None:
@@ -165,10 +199,30 @@ def _topk(scores, batch_iou=None, K=40, **kwargs):
         return topk_score, topk_inds, topk_classes, topk_ys, topk_xs
 
 
-def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
-                             point_cloud_range=None, voxel_size=None, feature_map_stride=None,
-                             vel=None, batch_iou=None, K=100, circle_nms=False, score_thresh=None,
-                             post_center_limit_range=None):
+@shape_checked
+def decode_bbox_from_heatmap(
+    heatmap: Float[Tensor, "B num_class H W"],
+    rot_cos: Float[Tensor, "B 1 H W"],
+    rot_sin: Float[Tensor, "B 1 H W"],
+    center: Float[Tensor, "B 2 H W"],
+    center_z: Float[Tensor, "B 1 H W"],
+    dim: Float[Tensor, "B 3 H W"],
+    point_cloud_range: Optional[FloatVector] = None,
+    voxel_size: Optional[FloatVector] = None,
+    feature_map_stride: Optional[float] = None,
+    vel: Optional[Float[Tensor, "B 2 H W"]] = None,
+    batch_iou: Optional[Float[Tensor, "B ..."]] = None,
+    K: int = 100,
+    circle_nms: bool = False,
+    score_thresh: Optional[float] = None,
+    post_center_limit_range: Optional[Float[Tensor, "6"]] = None,
+) -> List[Dict[str, Tensor]]:
+    """Decode per-sample box predictions from CenterPoint head outputs.
+
+    Returns:
+        One dict per batch sample with ``pred_boxes`` (M, 7) or (M, 9) when ``vel``
+        is given, ``pred_scores`` (M,) and ``pred_labels`` (M,), M <= K.
+    """
     batch_size, num_class, _, _ = heatmap.size()
     if circle_nms:
         # TODO: not checked yet
@@ -230,13 +284,19 @@ def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
     return ret_pred_dicts
 
 
-def bilinear_interpolate_torch(im, x, y):
+@shape_checked
+def bilinear_interpolate_torch(
+    im: Float[Tensor, "H W C"],
+    x: Float[Tensor, " N"],
+    y: Float[Tensor, " N"],
+) -> Float[Tensor, "N C"]:
     """
     Args:
         im: (H, W, C) [y, x]
         x: (N)
         y: (N)
     Returns:
+        features: (N, C) bilinearly sampled features
     """
     x0 = torch.floor(x).long()
     x1 = x0 + 1

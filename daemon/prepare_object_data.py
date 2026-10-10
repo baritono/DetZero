@@ -270,7 +270,7 @@ class WaymoObjectDataPrepare():
                     torch.from_numpy(pts[:, :3]).unsqueeze(dim=0).float().cuda(),
                     torch.from_numpy(boxes_enlarge).unsqueeze(dim=0).float().cuda()
                 ).long().squeeze(dim=0).cpu().numpy()
-                obj_pts_mask = obj_pts_mask.astype(np.bool)
+                obj_pts_mask = obj_pts_mask.astype(bool)
 
             for idx, obj_id in enumerate(frm_info['obj_id']):
                 if obj_id not in data_info: 
@@ -307,7 +307,8 @@ class WaymoObjectDataPrepare():
                 obj_info_tmp['matched'].append(frm_info['matched'][idx])
                 obj_info_tmp['gt_boxes_global'].append(frm_info['gt_boxes_global'][idx])
 
-                obj_pts = pts[obj_pts_mask[idx, :]]
+                # float32 halves the size of the object data (fully loaded into RAM by the refining datasets)
+                obj_pts = pts[obj_pts_mask[idx, :]].astype(np.float32)
                 obj_info_tmp['pts'].append(obj_pts)
 
                 data_info[obj_id] = obj_info_tmp

@@ -87,7 +87,7 @@ class WaymoTrackingMetricsEstimator(tf.test.TestCase):
             overlap_nlz.append(np.zeros(num_boxes))  # set zero atm
 
         frame_id = np.concatenate(frame_id).reshape(-1).astype(np.int64)
-        sequence_id = np.concatenate(sequence_id).reshape(-1).astype(np.str)
+        sequence_id = np.concatenate(sequence_id).reshape(-1).astype(str)
         object_id = np.array(object_id).reshape(-1).astype(np.int64)
         boxes3d = np.concatenate(boxes3d, axis=0)
         speed = np.concatenate(speed, axis=0)
@@ -217,7 +217,7 @@ class WaymoTrackingMetricsEstimator(tf.test.TestCase):
         return {item[0]: sess.run([item[1][0]]) for item in metrics.items()}
 
     def mask_by_distance(self, distance_thresh, boxes_3d, *args):
-        mask = np.linalg.norm(boxes_3d[:, 0:2], axis=1) < np.float('inf')
+        mask = np.linalg.norm(boxes_3d[:, 0:2], axis=1) < float('inf')
 
         boxes_3d = boxes_3d[mask]
         ret_ans = [boxes_3d]

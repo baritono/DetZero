@@ -32,7 +32,9 @@ def get_infos_worker(save_path, sample_sequence_file_list,
         has_label=has_label,
     )
 
-    with futures.ThreadPoolExecutor(num_workers) as executor:
+    # processes, not threads: the per-frame range image conversion is GIL-bound.
+    # 'spawn' avoids forking a process that has already imported TensorFlow.
+    with futures.ProcessPoolExecutor(num_workers, mp_context=multiprocessing.get_context('spawn')) as executor:
         sequence_infos = list(tqdm(executor.map(process_single_sequence, sample_sequence_file_list),
                                    total=len(sample_sequence_file_list)))
     
@@ -41,7 +43,7 @@ def get_infos_worker(save_path, sample_sequence_file_list,
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='val', processed_data_tag='waymo_processed_data',
-                       workers=1):
+                       workers=1, splits=('train', 'val', 'test')):
     dataset = WaymoDetectionDataset(
         dataset_cfg=dataset_cfg,
         class_names=class_names,
@@ -49,74 +51,30 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
         training=False,
         logger=common_utils.create_logger()
     )
-    sweeps = dataset.sweep_count
-    
-    train_split, val_split, test_split = 'train', 'val', 'test'
-    train_filename = os.path.join(save_path, ('waymo_infos_%s.pkl' % train_split))
-    val_filename = os.path.join(save_path, ('waymo_infos_%s.pkl' % val_split))
-    test_filename = os.path.join(save_path, ('waymo_infos_%s.pkl' % test_split))
-   
+    raw_data_path = os.path.join(data_path, raw_data_tag)
+
     print('============ Start to generate data infos ============')
 
-    dataset.set_split(train_split)
-    raw_data_path = os.path.join(data_path, raw_data_tag)
-    
-    # check whether the file exists
-    sample_sequence_file_list = [
-        dataset.check_sequence_name_with_all_version(os.path.join(raw_data_path, sequence_file))
-        for sequence_file in dataset.sample_sequence_list
-    ]
-    
-    waymo_infos_train = get_infos_worker(
-        save_path=os.path.join(save_path, processed_data_tag),
-        sample_sequence_file_list=sample_sequence_file_list,
-        num_workers=workers,
-        has_label=True
-    )
+    for split in splits:
+        dataset.set_split(split)
 
-    with open(train_filename, 'wb') as f:
-        pickle.dump(waymo_infos_train, f)
-    print('----------------Waymo info train file is saved to %s----------------' % train_filename)
+        # check whether the file exists
+        sample_sequence_file_list = [
+            dataset.check_sequence_name_with_all_version(os.path.join(raw_data_path, sequence_file))
+            for sequence_file in dataset.sample_sequence_list
+        ]
 
-    # pre-process valdation part
-    dataset.set_split(val_split)
-    raw_data_path = os.path.join(data_path, raw_data_tag)
+        waymo_infos = get_infos_worker(
+            save_path=os.path.join(save_path, processed_data_tag),
+            sample_sequence_file_list=sample_sequence_file_list,
+            num_workers=workers,
+            has_label=True
+        )
 
-    sample_sequence_file_list = [
-        dataset.check_sequence_name_with_all_version(os.path.join(raw_data_path, sequence_file))
-        for sequence_file in dataset.sample_sequence_list
-    ]
-
-    waymo_infos_val = get_infos_worker(
-        save_path=os.path.join(save_path, processed_data_tag),
-        sample_sequence_file_list=sample_sequence_file_list,
-        num_workers=workers,
-        has_label=True
-    )
-
-    with open(val_filename, 'wb') as f:
-        pickle.dump(waymo_infos_val, f)
-    print('----------------Waymo info val file is saved to %s----------------' % val_filename)
-
-    dataset.set_split(test_split)
-    raw_data_path = os.path.join(data_path, raw_data_tag)
-    
-    # check whether the file exists
-    sample_sequence_file_list = [
-        dataset.check_sequence_name_with_all_version(os.path.join(raw_data_path, sequence_file))
-        for sequence_file in dataset.sample_sequence_list
-    ]
-    
-    waymo_infos_test = get_infos_worker(
-        save_path=os.path.join(save_path, processed_data_tag),
-        sample_sequence_file_list=sample_sequence_file_list,
-        num_workers=workers,
-        has_label=True
-    )
-
-    with open(test_filename, 'wb') as f:
-        pickle.dump(waymo_infos_test, f)
-    print('----------------Waymo info test file is saved to %s----------------' % test_filename)
+        info_filename = os.path.join(save_path, ('waymo_infos_%s.pkl' % split))
+        with open(info_filename, 'wb') as f:
+            pickle.dump(waymo_infos, f)
+        print('----------------Waymo info %s file is saved to %s----------------' % (split, info_filename))
 
     print('============ Generate data infos finished ============')
 
@@ -173,17 +131,15 @@ def create_groundtruth_database(dataset, info_path, save_path, split='train', us
             filename = '%s_%04d_%s_%d.bin' % (sequence_name, sample_idx, names[i], i)
             filepath = os.path.join(database_save_path, filename)
 
-            if os.path.exists(filepath):
-                print('Skip files since it has been processed before: %s' % filepath)
-                continue
-
             # get points belonging to the object
             gt_points = points[box_idxs == i]
             gt_points[:, :3] -= gt_boxes[i, :3]
 
             if (used_classes is None) or names[i] in used_classes:
-                with open(filepath, 'w') as f:
-                    gt_points.tofile(f)
+                # on resume, keep the existing file but still record its db_info
+                if not os.path.exists(filepath):
+                    with open(filepath, 'w') as f:
+                        gt_points.tofile(f)
                 db_path = str(Path(filepath).relative_to(dataset.root_path))  # gt_database/xxxxx.bin
 
                 db_info = {'name': names[i], 'path': db_path, 'sequence_name': sequence_name,
@@ -233,6 +189,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
+    parser.add_argument('--workers', type=int, default=multiprocessing.cpu_count(),
+                        help='number of sequences processed concurrently (each holds a whole tfrecord in RAM)')
+    parser.add_argument('--splits', type=str, nargs='+', default=['train', 'val', 'test'],
+                        help='splits to process for create_waymo_infos')
     args = parser.parse_args()
    
     if args.func == 'create_waymo_infos':
@@ -245,7 +205,8 @@ if __name__ == '__main__':
             save_path=os.path.join(str(ROOT_DIR), 'data', 'waymo'),
             raw_data_tag='raw_data',
             processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG,
-            workers=multiprocessing.cpu_count()
+            workers=args.workers,
+            splits=args.splits
         )
     
     if args.func == 'create_waymo_database':

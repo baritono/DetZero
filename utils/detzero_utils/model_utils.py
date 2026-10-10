@@ -14,7 +14,8 @@ def load_params_from_file(model, filename, logger, to_cpu=False,
     logger.info('==> Loading parameters from checkpoint %s to %s' %
         (filename, 'CPU' if to_cpu else 'GPU'))
     loc_type = torch.device('cpu') if to_cpu else None
-    checkpoint = torch.load(filename, map_location=loc_type)
+    # checkpoints also hold optimizer state and version strings; torch>=2.6 defaults to weights_only=True
+    checkpoint = torch.load(filename, map_location=loc_type, weights_only=False)
     model_state_disk = checkpoint['model_state']
 
     if 'version' in checkpoint:
@@ -52,7 +53,7 @@ def load_params_with_optimizer(model, filename, to_cpu=False,
         (filename, 'CPU' if to_cpu else 'GPU'))
     
     loc_type = torch.device('cpu') if to_cpu else None
-    checkpoint = torch.load(filename, map_location=loc_type)
+    checkpoint = torch.load(filename, map_location=loc_type, weights_only=False)
     epoch = checkpoint.get('epoch', -1)
     it = checkpoint.get('it', 0.0)
 
@@ -68,7 +69,7 @@ def load_params_with_optimizer(model, filename, to_cpu=False,
             src_file, ext = filename[:-4], filename[-3:]
             optimizer_filename = '%s_optim.%s' % (src_file, ext)
             if os.path.exists(optimizer_filename):
-                optimizer_ckpt = torch.load(optimizer_filename, map_location=loc_type)
+                optimizer_ckpt = torch.load(optimizer_filename, map_location=loc_type, weights_only=False)
                 optimizer.load_state_dict(optimizer_ckpt['optimizer_state'])
 
     if 'version' in checkpoint:

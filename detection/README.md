@@ -42,3 +42,5 @@ python test.py --cfg_file cfgs/det_model_cfgs/centerpoint_1sweep.yaml --ckpt <PA
 - If you want to change the value of some common settings, please use `--set` following your training command rather than modify the yaml file straightly. For example, `--set OPTIMIZATION.BATCH_SIZE_PER_GPU 16` for changing batch size.
 
 - If you want to use some tag to mark this specific experiment, please use `--extra_tag` following your command. For example, `--extra_tag bs16` for batch size 16 experiment.
+
+- Training always writes TensorBoard logs to `output/<cfg path>/<extra_tag>/tensorboard`. To also log to [Weights & Biases](https://wandb.ai), `pip install "wandb<0.26"`, log in (`wandb login` or `WANDB_API_KEY`), and add `--wandb` (optionally `--wandb_project`, `--wandb_entity`, `--wandb_name`, `--wandb_tags`). Every TensorBoard scalar is mirrored to W&B, together with the config and GPU utilization. The same flags work for `refining/tools/train.py`.

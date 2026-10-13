@@ -2,7 +2,7 @@
 
 ## Prerequisites
 All the code is tested in the following environment:
-- Linux (tested on Ubuntu 20.04 / 22.04 / **24.04 LTS**)
+- Linux (tested on Ubuntu **24.04 LTS**)
 - Python 3.10 (required by `waymo-open-dataset-tf-2-12-0`, see the version matrix below)
 - PyTorch 2.6.0 built against CUDA 12.6
 - CUDA Toolkit 12.6 (first officially supported CUDA on Ubuntu 24.04 is 12.5.1; 12.6 is recommended)
@@ -22,7 +22,7 @@ All the code is tested in the following environment:
 | spconv | **`spconv-cu126==2.3.8`** | Matches CUDA 12.6, requires Python ≥ 3.9. |
 | waymo-open-dataset | **`waymo-open-dataset-tf-2-12-0==1.6.4`** | See the note below — this is the last waymo release whose transitive dependencies resolve cleanly against PyTorch 2.6. |
 | numpy | 1.23.x (hard-pinned by waymo) | Do not add a conflicting pin to `requirements.txt`; let the waymo package pick the version. |
-| numba | **>=0.59,<0.60** | First Numba release with Python 3.12 support; still compatible with numpy 1.23 (numba 0.61 drops numpy < 1.24). |
+| numba | **>=0.59,<0.60** | Must support numpy 1.23, which the Waymo package pins: numba 0.61+ requires numpy >= 1.24. 0.59.x is the tested version. |
 | typing-extensions | >=4.10.0 | Pulled in transitively by torch 2.6. |
 | protobuf | **3.20.3** | `waymo_open_dataset.utils.frame_utils` calls `ParseFromString(bytearray(...))`, which the protobuf 4.x upb backend rejects (`TypeError: expected bytes, bytearray found`). TF 2.12 accepts `>=3.20.3,<5`. |
 | tensorflow-metadata | **<1.14** | 1.14+ requires protobuf >= 4.21.6; only used by `tensorflow-datasets`, which DetZero does not import. |
@@ -137,14 +137,3 @@ cd DetZero/tracking && python setup.py develop
 ```shell
 cd DetZero/refining && python setup.py develop
 ```
-
-### Verifying a resolvable environment
-
-After step `g` completes without a `ResolutionImpossible` error from pip, you can additionally
-sanity-check the resolved versions with:
-```shell
-pip install pipdeptree
-pipdeptree -p torch -p tensorflow -p numpy -p typing_extensions
-```
-Expected outputs are `torch==2.6.0`, `tensorflow==2.12.x`, `numpy==1.23.x`, and
-`typing_extensions>=4.10.0,<5`.

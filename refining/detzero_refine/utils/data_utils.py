@@ -20,7 +20,7 @@ def sample_points(pts, sample_num=4096, replace=False):
     else:
         if replace and pts_num > 0:
             sample_idx = np.arange(pts_num)
-            sample_idx = np.tile(sample_idx, np.int(sample_num)//np.int(pts_num) + 1)[:sample_num]
+            sample_idx = np.tile(sample_idx, int(sample_num)//int(pts_num) + 1)[:sample_num]
             pts = pts[sample_idx]
 
         else:

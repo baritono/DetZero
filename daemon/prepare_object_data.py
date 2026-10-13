@@ -270,7 +270,7 @@ class WaymoObjectDataPrepare():
                     torch.from_numpy(pts[:, :3]).unsqueeze(dim=0).float().cuda(),
                     torch.from_numpy(boxes_enlarge).unsqueeze(dim=0).float().cuda()
                 ).long().squeeze(dim=0).cpu().numpy()
-                obj_pts_mask = obj_pts_mask.astype(np.bool)
+                obj_pts_mask = obj_pts_mask.astype(bool)
 
             for idx, obj_id in enumerate(frm_info['obj_id']):
                 if obj_id not in data_info: 

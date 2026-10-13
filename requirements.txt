@@ -8,6 +8,6 @@ pyyaml
 tqdm
 opencv-python
 tabulate
-kornia
 scipy
 addict
+filterpy

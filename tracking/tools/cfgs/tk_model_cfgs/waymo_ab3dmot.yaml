@@ -5,7 +5,7 @@ DATA_CONFIG:
         - NAME: heading_process
 
         - NAME: low_confidence_box_filter
-        THRESHOLD: 0.1
+          THRESHOLD: 0.1
 
         - NAME: transform_to_global
 

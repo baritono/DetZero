@@ -19,13 +19,13 @@ Currently we only provide the processing of Waymo dataset.
 - process waymo infos:
   ```shell
   cd detection
-  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_one_sweep.yaml --func create_waymo_infos
+  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_1sweep.yaml --func create_waymo_infos
   ```
 
 - generate database for gt-sampling
   ```
   cd detection
-  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_one_sweep.yaml --func create_waymo_database
+  python -m detzero_det.datasets.waymo.waymo_preprocess --cfg_file tools/cfgs/det_dataset_cfgs/waymo_1sweep.yaml --func create_waymo_database
   ```
 
 ### NOTE

@@ -93,7 +93,9 @@ class WaymoDetectionDataset(DatasetTemplate):
     def get_infos_and_points(self, idx_list):
         infos, points = [], []
         for i in idx_list:
-            lidar_path = self.infos[i]['lidar_path']
+            # infos store an absolute path from the preprocessing machine; resolve it
+            # against this dataset's data_path so processed data can be moved (e.g. to the cloud)
+            lidar_path = os.path.join(self.data_path, *self.infos[i]['lidar_path'].split('/')[-2:])
             current_point = np.load(lidar_path)
 
             infos.append(self.infos[i])
